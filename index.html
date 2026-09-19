@@ -6,17 +6,17 @@
   <title>Kelontong Mart - Mobile POS</title>
   
   <!-- Virtual Manifest PWA akan disuntikkan ke sini oleh JavaScript -->
-  <link id="pwa-manifest" rel="manifest" href="">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#059669">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kelontong">
   
-  <!-- CDN Tailwind CSS, Supabase, Barcode Scanner & fallback decoder -->
+  <!-- CDN Tailwind CSS, Supabase & decoder barcode dari foto -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <script>
@@ -36,7 +36,6 @@
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .modal-hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }
-    #scanner-modal video { border-radius: 1rem; }
 
     /* Struk Kasir Print */
     @media print {
@@ -85,8 +84,8 @@
         </div>
         
         <div class="flex items-center gap-2">
-          <!-- Tombol Scan -->
-          <button type="button" onclick="openScannerModal()" class="px-2.5 py-1.5 bg-brand-700 active:bg-brand-800 rounded-xl transition flex items-center text-xs gap-1.5 shadow-sm">
+          <!-- Tombol Scan: langsung buka kamera HP untuk ambil foto barcode -->
+          <button type="button" onclick="triggerBarcodePhoto()" class="px-2.5 py-1.5 bg-brand-700 active:bg-brand-800 rounded-xl transition flex items-center text-xs gap-1.5 shadow-sm">
             <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
             <span class="text-[11px] font-bold pointer-events-none">Scan</span>
           </button>
@@ -295,23 +294,8 @@
       </div>
     </div>
 
-    <!-- Modal Scanner -->
-    <div id="scanner-modal" class="modal-hidden absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl w-full max-w-sm p-4 space-y-3 relative">
-        <div class="flex justify-between items-center border-b pb-2">
-          <h4 class="font-bold text-sm">Arahkan Barcode</h4>
-          <button type="button" onclick="closeScannerModal()" class="p-1 rounded-full bg-slate-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-        </div>
-        <div id="camera-scanner-view" class="w-full h-56 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center text-white text-xs text-center px-4">Meminta izin kamera...</div>
-        <p id="scanner-error-msg" class="hidden text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-2 text-center"></p>
-        <div class="grid grid-cols-1 gap-2 pt-1">
-          <label class="w-full py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold text-center cursor-pointer active:scale-95 transition">
-            📷 Ambil Foto Barcode (jika kamera live gagal)
-            <input type="file" id="scanner-fallback-input" accept="image/*" capture="environment" class="hidden" onchange="handleFallbackImage(event)">
-          </label>
-        </div>
-      </div>
-    </div>
+    <!-- Input tersembunyi: memicu kamera native HP langsung untuk ambil foto barcode -->
+    <input type="file" id="barcode-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleBarcodePhoto(event)">
 
     <!-- Modal Form Barang -->
     <div id="product-modal" class="modal-hidden absolute inset-0 bg-black/60 z-50 flex items-end justify-center">
@@ -390,37 +374,21 @@
 
   <!-- SCRIPT UTAMA KASIR -->
   <script>
-    // --- PENERAPAN PWA (MANIFEST & SERVICE WORKER) VIRTUAL ---
-    // Karena GAS memblokir file terpisah, kita inject PWA rules langsung lewat script.
-    // CATATAN PENTING: saat dibuka lewat URL /exec Apps Script, halaman ini sebenarnya
-    // dimuat di dalam iframe cross-origin milik Google (script.google.com -> googleusercontent.com).
-    // Kriteria "installable PWA" (beforeinstallprompt) dan sebagian batasan kamera browser
-    // dievaluasi pada dokumen TOP-LEVEL, bukan pada iframe ini — jadi walau manifest & service
-    // worker sudah benar, sebagian browser tetap tidak akan menampilkan prompt otomatis.
-    // Kode di bawah tetap disiapkan selengkap mungkin + fallback manual untuk kasus tersebut.
-    (function injectPWA() {
-      try {
-        // 1. Buat Manifest (dua ukuran ikon + maskable agar lolos syarat installability Android)
-        const manifestData = {
-          "name": "Kelontong Mart", "short_name": "Kelontong",
-          "start_url": ".", "display": "standalone", "orientation": "portrait",
-          "background_color": "#059669", "theme_color": "#059669",
-          "icons": [
-            {"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHJlY3Qgd2lkdGg9JzI0JyBoZWlnaHQ9JzI0JyBmaWxsPScjMDU5NjY5Jy8+PHBhdGggZmlsbD0nI2ZmZicgZD0nTTMgM2gybC40IDJNNyAxM2gxMGw0LThINS40TTcgMTNMNS40IDVNNyAxM2wtMi4yOTMgMi4yOTNjLS42My42My0uMTg0IDEuNzA3LjcwNyAxLjcwN0gxN20wIDBhMiAyIDAgMTAwIDQgMiAyIDAgMDAwLTR6bS04IDJhMiAyIDAgMTEtNCAwIDIgMiAwIDAxNCAwelAvPjwvc3ZnPg==", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any"},
-            {"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHJlY3Qgd2lkdGg9JzI0JyBoZWlnaHQ9JzI0JyBmaWxsPScjMDU5NjY5Jy8+PHBhdGggZmlsbD0nI2ZmZicgZD0nTTMgM2gybC40IDJNNyAxM2gxMGw0LThINS40TTcgMTNMNS40IDVNNyAxM2wtMi4yOTMgMi4yOTNjLS42My42My0uMTg0IDEuNzA3LjcwNyAxLjcwN0gxN20wIDBhMiAyIDAgMTAwIDQgMiAyIDAgMDAwLTR6bS04IDJhMiAyIDAgMTEtNCAwIDIgMiAwIDAxNCAwelAvPjwvc3ZnPg==", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable any"}
-          ]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifestData)], {type: 'application/manifest+json'});
-        document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
-
-        // 2. Buat Service Worker Minimalist (wajib ada fetch handler agar syarat "installable" terpenuhi)
-        if ('serviceWorker' in navigator) {
-          const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => self.clients.claim()); self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => new Response('Offline'))); });`;
-          const swBlob = new Blob([swCode], {type: 'text/javascript'});
-          navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
-        }
-      } catch(e){}
-    })();
+    // --- PENERAPAN PWA ---
+    // Manifest & apple-touch-icon sekarang mengarah ke FILE ASLI (manifest.json, icon-192.png,
+    // dst) yang harus ada satu folder dengan Index.html saat di-deploy (GitHub Pages/Netlify/dll).
+    // Ini jauh lebih andal daripada manifest hasil Blob URL: banyak browser (terutama Chrome
+    // Android) hanya membuat WebAPK/"install penuh" (yang membuat ikon di layar utama benar-benar
+    // membuka tampilan standalone tanpa address bar) kalau manifest bisa diambil sebagai resource
+    // jaringan biasa — bukan blob: yang sifatnya sementara per sesi. Manifest berbasis Blob juga
+    // menjadi salah satu penyebab utama kenapa sebelumnya ikon di layar utama masih membuka
+    // browser biasa, bukan tampilan full-layar seperti aplikasi.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {
+        // Kalau file sw.js/manifest.json belum di-upload ke folder yang sama, ini akan gagal
+        // secara diam-diam — aplikasi tetap jalan normal, hanya saja tidak akan installable.
+      });
+    }
 
     // Tangkap Event PWA Install Prompt (Android/Chrome)
     let deferredPrompt = null;
@@ -483,7 +451,7 @@
     // --- STATE & FUNGSI UTAMA APLIKASI ---
     let db = null; let products = []; let cart = []; let customers = []; let transactions = [];
     let activeCategory = 'Semua'; let currentPayMode = 'TUNAI';
-    let isLowStockOnly = false; let html5QrScanner = null;
+    let isLowStockOnly = false;
 
     const safeStorage = {
       getItem: (key) => { try { return localStorage.getItem(key) || ''; } catch(e) { return window['__mem_'+key] || ''; } },
@@ -514,71 +482,21 @@
       if (el) { el.classList.add('modal-hidden'); el.style.display = 'none'; }
     };
 
-    // ================= SCANNER: KAMERA LANGSUNG + FALLBACK FOTO =================
-    window.openScannerModal = async function() {
-      openModal('scanner-modal');
-      const view = document.getElementById('camera-scanner-view');
-      const errBox = document.getElementById('scanner-error-msg');
-      errBox.classList.add('hidden');
-      view.innerText = 'Meminta izin kamera...';
-
-      if (!window.isSecureContext) {
-        view.innerText = 'Kamera butuh koneksi HTTPS.';
-        errBox.innerText = 'Halaman ini tidak berjalan di HTTPS, browser akan memblokir akses kamera. Gunakan tombol "Ambil Foto Barcode" di bawah sebagai gantinya.';
-        errBox.classList.remove('hidden');
-        return;
-      }
-      if (typeof Html5Qrcode === 'undefined') {
-        view.innerText = 'Library scanner gagal dimuat.';
-        return;
-      }
-
-      try {
-        html5QrScanner = new Html5Qrcode("camera-scanner-view");
-        // Coba dapatkan daftar kamera & pilih kamera belakang secara eksplisit (lebih stabil di Android)
-        let cameraConfig = { facingMode: "environment" };
-        try {
-          const cams = await Html5Qrcode.getCameras();
-          if (cams && cams.length) {
-            const back = cams.find(c => /back|belakang|rear|environment/i.test(c.label)) || cams[cams.length - 1];
-            cameraConfig = back.id;
-          }
-        } catch (permErr) { /* getCameras butuh izin dulu di sebagian browser — lanjut pakai facingMode */ }
-
-        await html5QrScanner.start(
-          cameraConfig,
-          { fps: 10, qrbox: 220 },
-          (decodedText) => { triggerHaptic(); closeScannerModal(); handleScannedBarcode(decodedText); },
-          () => { /* frame tanpa barcode terdeteksi, abaikan */ }
-        );
-      } catch (e) {
-        console.error(e);
-        view.innerText = 'Kamera tidak bisa diakses.';
-        let hint = 'Kamera gagal dibuka. ';
-        if (String(e).includes('NotAllowedError') || String(e).includes('Permission')) {
-          hint += 'Izin kamera ditolak — cek pengaturan izin situs di browser Anda.';
-        } else if (String(e).includes('NotFoundError')) {
-          hint += 'Tidak ada kamera yang terdeteksi di perangkat ini.';
-        } else {
-          hint += 'Ini sering terjadi jika halaman dibuka di dalam iframe (mis. pratinjau Apps Script) yang membatasi akses kamera. Gunakan tombol "Ambil Foto Barcode" di bawah sebagai gantinya.';
-        }
-        errBox.innerText = hint;
-        errBox.classList.remove('hidden');
-      }
+    // ================= SCANNER: AMBIL FOTO BARCODE =================
+    // Kamera live dihapus — kamera dibuka langsung lewat input file bertipe
+    // capture="environment" (native camera HP), lalu barcode dibaca dari foto
+    // yang diambil memakai jsQR. Ini lebih stabil di berbagai browser/perangkat
+    // dibanding stream kamera live, dan tidak butuh izin kamera terpisah dari browser.
+    window.triggerBarcodePhoto = function() {
+      triggerHaptic();
+      document.getElementById('barcode-photo-input').click();
     };
 
-    window.closeScannerModal = function() {
-      if (html5QrScanner) {
-        html5QrScanner.stop().then(() => html5QrScanner.clear()).catch(() => {});
-        html5QrScanner = null;
-      }
-      closeModal('scanner-modal');
-    };
-
-    // Fallback: ambil satu foto lewat kamera native HP (input capture), lalu decode barcode dari gambar
-    window.handleFallbackImage = function(event) {
+    window.handleBarcodePhoto = function(event) {
       const file = event.target.files && event.target.files[0];
+      event.target.value = ''; // reset agar bisa pilih file yang sama lagi nanti
       if (!file) return;
+      showToast('Memproses foto...');
       const img = new Image();
       img.onload = function() {
         const canvas = document.createElement('canvas');
@@ -587,17 +505,19 @@
         ctx.drawImage(img, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = (typeof jsQR !== 'undefined') ? jsQR(imageData.data, imageData.width, imageData.height) : null;
+        URL.revokeObjectURL(img.src);
         if (code && code.data) {
-          triggerHaptic(); closeScannerModal(); handleScannedBarcode(code.data);
+          triggerHaptic();
+          handleScannedBarcode(code.data);
         } else {
-          showToast('Barcode tidak terbaca, coba foto ulang lebih dekat & jelas', 'error');
+          showToast('Barcode tidak terbaca. Foto ulang lebih dekat & pastikan cahaya cukup', 'error');
         }
       };
+      img.onerror = function() { showToast('Gagal membaca foto', 'error'); };
       img.src = URL.createObjectURL(file);
-      event.target.value = '';
     };
 
-    // Hasil scan (dari kamera live maupun fallback foto) diproses di sini
+    // Hasil scan diproses di sini
     window.handleScannedBarcode = function(code) {
       code = String(code).trim();
       const p = products.find(x => x.barcode === code);
