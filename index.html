@@ -42,7 +42,11 @@
     button, [role="button"], .cat-chip, .nav-item { touch-action: manipulation; }
     /* Cegah auto-zoom iOS saat fokus input (butuh font-size >= 16px) tanpa mengubah tampilan visual */
     input, select, textarea { font-size: 16px !important; }
-    .pb-safe { padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px)); }
+    /* Jarak aman bawah konten HARUS mengikuti tinggi nyata bottom nav (4rem + safe-area)
+       ditambah bantalan ekstra — nilai tetap seperti sebelumnya (75px) bisa lebih kecil dari
+       tinggi nav sesungguhnya di sebagian perangkat, membuat item terakhir kepotong dan tidak
+       bisa discroll penuh ke atas nav. */
+    .pb-safe { padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 28px); }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .modal-hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }
@@ -229,7 +233,7 @@
     </main>
 
     <!-- Floating Cart Bar -->
-    <div id="floating-cart-bar" class="hidden absolute left-3 right-3 bottom-[72px] z-30 transition-transform duration-300">
+    <div id="floating-cart-bar" class="hidden absolute left-3 right-3 z-30 transition-transform duration-300" style="bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 8px);">
       <button type="button" onclick="toggleCartDrawer(true)" class="w-full bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-xl flex items-center justify-between active:scale-[0.98]">
         <div class="flex items-center gap-3">
           <div class="relative bg-brand-600 p-2 rounded-xl text-white">
