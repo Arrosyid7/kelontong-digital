@@ -20,6 +20,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -186,8 +187,20 @@
         </div>
 
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="p-3 border-b border-slate-100"><h3 class="font-bold text-sm text-slate-800">🏆 Produk Paling Laku</h3></div>
-          <div id="top-products-list" class="divide-y divide-slate-100 text-sm"></div>
+          <div class="p-3 border-b border-slate-100"><h3 class="font-bold text-sm text-slate-800">💰 Total Penjualan per Produk</h3></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-slate-50 text-slate-500">
+                <tr>
+                  <th class="p-2.5 font-bold">Produk</th>
+                  <th class="p-2.5 font-bold text-center">Qty Tunai</th>
+                  <th class="p-2.5 font-bold text-center">Qty Bon</th>
+                  <th class="p-2.5 font-bold text-right">Total Penjualan</th>
+                </tr>
+              </thead>
+              <tbody id="sales-per-product-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -588,49 +601,111 @@
       const doc = new jsPDF();
       const { from, to } = getReportDateRange();
       const filtered = transactions.filter(t => { const d = new Date(t.created_at || Date.now()); return d >= from && d <= to; });
-      let y = 16;
-      const line = (txt, size=11, bold=false) => { doc.setFontSize(size); doc.setFont(undefined, bold?'bold':'normal'); doc.text(txt, 14, y); y += size < 12 ? 6 : 8; };
       const periodLabel = reportPeriod === 'harian' ? 'Harian' : reportPeriod === 'bulanan' ? 'Bulanan' : 'Custom';
 
-      line('Kelontong Mart - Rekap Lengkap', 16, true);
-      line(`Periode: ${periodLabel} (${from.toLocaleDateString('id-ID')} - ${to.toLocaleDateString('id-ID')})`, 10);
-      y += 2;
+      // Header
+      doc.setFillColor(5, 150, 105);
+      doc.rect(0, 0, 210, 26, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(17); doc.setFont(undefined, 'bold');
+      doc.text('KELONTONG MART', 14, 14);
+      doc.setFontSize(10); doc.setFont(undefined, 'normal');
+      doc.text('Rekap Lengkap Toko', 14, 21);
+      doc.setTextColor(30,30,30);
+      doc.setFontSize(9);
+      doc.text(`Periode: ${periodLabel}  (${from.toLocaleDateString('id-ID')} - ${to.toLocaleDateString('id-ID')})`, 14, 33);
 
-      line('Ringkasan Omzet', 13, true);
+      let y = 40;
+
+      // Ringkasan Omzet
       const omset = filtered.reduce((a,b)=>a+Number(b.total_akhir||0),0);
+      const totalTunai = filtered.filter(t=>t.metode_bayar==='TUNAI').reduce((a,b)=>a+Number(b.total_akhir||0),0);
       const piutangBaru = filtered.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0);
-      line(`Total Omzet: Rp ${omset.toLocaleString('id-ID')}`);
-      line(`Jumlah Transaksi: ${filtered.length}`);
-      line(`Bon Baru: Rp ${piutangBaru.toLocaleString('id-ID')}`);
-      y += 2;
+      doc.autoTable({
+        startY: y,
+        head: [['Ringkasan Omzet', 'Nilai']],
+        body: [
+          ['Total Omzet', 'Rp ' + omset.toLocaleString('id-ID')],
+          ['Penjualan Tunai', 'Rp ' + totalTunai.toLocaleString('id-ID')],
+          ['Bon Baru (Piutang)', 'Rp ' + piutangBaru.toLocaleString('id-ID')],
+          ['Jumlah Transaksi', String(filtered.length)]
+        ],
+        theme: 'grid', headStyles: { fillColor: [5,150,105] }, styles: { fontSize: 9 }, margin: { left: 14, right: 14 }
+      });
+      y = doc.lastAutoTable.finalY + 8;
 
-      line('Barang Paling Laku', 13, true);
-      const qtyMap = {};
-      filtered.forEach(t => (t.items||[]).forEach(it => { qtyMap[it.nama_produk] = (qtyMap[it.nama_produk]||0) + Number(it.qty||0); }));
-      const top = Object.entries(qtyMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      if (top.length === 0) line('Belum ada data penjualan pada periode ini.');
-      top.forEach(([nama, qty], i) => line(`${i+1}. ${nama} — ${qty} terjual`));
-      y += 2;
+      // Total Penjualan per Produk (Tunai vs Bon)
+      const prodMap = {};
+      filtered.forEach(t => (t.items||[]).forEach(it => {
+        if (!prodMap[it.nama_produk]) prodMap[it.nama_produk] = { qtyTunai:0, qtyBon:0, totalTunai:0, totalBon:0 };
+        const r = prodMap[it.nama_produk];
+        if (t.metode_bayar === 'PIUTANG') { r.qtyBon += Number(it.qty||0); r.totalBon += Number(it.subtotal||0); }
+        else { r.qtyTunai += Number(it.qty||0); r.totalTunai += Number(it.subtotal||0); }
+      }));
+      const prodRows = Object.entries(prodMap).sort((a,b)=>(b[1].totalTunai+b[1].totalBon)-(a[1].totalTunai+a[1].totalBon))
+        .map(([nama, r]) => [nama, r.qtyTunai, r.qtyBon, 'Rp ' + (r.totalTunai+r.totalBon).toLocaleString('id-ID')]);
+      doc.autoTable({
+        startY: y,
+        head: [['Total Penjualan per Produk', 'Qty Tunai', 'Qty Bon', 'Total Penjualan']],
+        body: prodRows.length ? prodRows : [['Belum ada data penjualan pada periode ini', '-', '-', '-']],
+        theme: 'striped', headStyles: { fillColor: [5,150,105] }, styles: { fontSize: 8.5 }, margin: { left: 14, right: 14 }
+      });
+      y = doc.lastAutoTable.finalY + 8;
 
-      if (y > 250) { doc.addPage(); y = 16; }
-      line('Stok Barang', 13, true);
-      products.forEach(p => { if (y > 275) { doc.addPage(); y = 16; } line(`${p.nama} — stok: ${p.stok}${p.stok <= p.stok_minimum ? ' (MENIPIS)' : ''}`); });
-      y += 2;
+      // Stok Barang
+      if (y > 240) { doc.addPage(); y = 14; }
+      const stokRows = products.map(p => [p.nama, String(p.stok), p.stok <= p.stok_minimum ? 'MENIPIS' : 'Aman']);
+      doc.autoTable({
+        startY: y,
+        head: [['Stok Barang', 'Jumlah', 'Status']],
+        body: stokRows.length ? stokRows : [['Belum ada produk', '-', '-']],
+        theme: 'striped', headStyles: { fillColor: [71,85,105] }, styles: { fontSize: 8.5 }, margin: { left: 14, right: 14 },
+        didParseCell: (data) => { if (data.section==='body' && data.column.index===2 && data.cell.raw==='MENIPIS') { data.cell.styles.textColor = [220,38,38]; data.cell.styles.fontStyle='bold'; } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
 
-      if (y > 250) { doc.addPage(); y = 16; }
-      line('Daftar Bon Pelanggan', 13, true);
+      // Daftar Bon Pelanggan
+      if (y > 240) { doc.addPage(); y = 14; }
       const withDebt = customers.filter(c => Number(c.total_piutang) > 0);
-      if (withDebt.length === 0) line('Tidak ada bon aktif.');
-      withDebt.forEach(c => { if (y > 275) { doc.addPage(); y = 16; } line(`${c.nama} (${c.no_hp||'-'}) — Rp ${Number(c.total_piutang).toLocaleString('id-ID')}`); });
-      y += 2;
+      doc.autoTable({
+        startY: y,
+        head: [['Nama Pelanggan', 'No. WA', 'Sisa Bon']],
+        body: withDebt.length ? withDebt.map(c => [c.nama, c.no_hp||'-', 'Rp ' + Number(c.total_piutang).toLocaleString('id-ID')]) : [['Tidak ada bon aktif', '-', '-']],
+        theme: 'striped', headStyles: { fillColor: [217,119,6] }, styles: { fontSize: 8.5 }, margin: { left: 14, right: 14 }
+      });
+      y = doc.lastAutoTable.finalY + 8;
 
-      if (y > 250) { doc.addPage(); y = 16; }
-      line('Belanja per Pelanggan (pada periode ini)', 13, true);
+      // Belanja per Pelanggan (periode ini)
+      if (y > 240) { doc.addPage(); y = 14; }
       const belanjaMap = {};
       filtered.forEach(t => { if (t.customer_nama) belanjaMap[t.customer_nama] = (belanjaMap[t.customer_nama]||0) + Number(t.total_akhir||0); });
-      const belanjaList = Object.entries(belanjaMap).sort((a,b)=>b[1]-a[1]);
-      if (belanjaList.length === 0) line('Belum ada data belanja atas nama pelanggan pada periode ini.');
-      belanjaList.forEach(([nama, total]) => { if (y > 275) { doc.addPage(); y = 16; } line(`${nama} — Rp ${total.toLocaleString('id-ID')}`); });
+      const belanjaRows = Object.entries(belanjaMap).sort((a,b)=>b[1]-a[1]).map(([nama, total]) => [nama, 'Rp ' + total.toLocaleString('id-ID')]);
+      doc.autoTable({
+        startY: y,
+        head: [['Belanja per Pelanggan', 'Total']],
+        body: belanjaRows.length ? belanjaRows : [['Belum ada data belanja atas nama pelanggan', '-']],
+        theme: 'striped', headStyles: { fillColor: [30,64,175] }, styles: { fontSize: 8.5 }, margin: { left: 14, right: 14 }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // Riwayat Transaksi (dengan keterangan Tunai/Bon dan barang yang dibeli)
+      if (y > 230) { doc.addPage(); y = 14; }
+      const txRows = filtered.map(t => [
+        new Date(t.created_at).toLocaleDateString('id-ID'),
+        t.no_struk || '-',
+        t.customer_nama || 'Umum',
+        t.metode_bayar === 'PIUTANG' ? 'BON' : 'TUNAI',
+        (t.items||[]).map(it => `${it.nama_produk} x${it.qty}`).join(', ') || '-',
+        'Rp ' + Number(t.total_akhir||0).toLocaleString('id-ID')
+      ]);
+      doc.autoTable({
+        startY: y,
+        head: [['Tanggal', 'No. Struk', 'Pelanggan', 'Ket.', 'Barang Dibeli', 'Total']],
+        body: txRows.length ? txRows : [['-', '-', '-', '-', 'Belum ada transaksi pada periode ini', '-']],
+        theme: 'grid', headStyles: { fillColor: [51,65,85] }, styles: { fontSize: 7.5, cellWidth: 'wrap' },
+        columnStyles: { 4: { cellWidth: 55 } }, margin: { left: 14, right: 14 },
+        didParseCell: (data) => { if (data.section==='body' && data.column.index===3) { data.cell.styles.textColor = data.cell.raw==='BON' ? [217,119,6] : [5,150,105]; data.cell.styles.fontStyle='bold'; } }
+      });
 
       return doc;
     };
@@ -807,22 +882,89 @@
       window.open(`https://wa.me/${normalizePhoneWA(c.no_hp)}?text=${encodeURIComponent(pesan)}`, '_blank');
     };
 
-    // Buat PDF tagihan satu pelanggan lalu unduh; kalau perangkat mendukung Web Share API
-    // dengan file, tawarkan juga "Bagikan" supaya bisa dipilih langsung ke WhatsApp.
+    // Buat PDF tagihan berbentuk invoice toko: header, info pelanggan, tabel rincian barang
+    // yang dibeli dengan cara BON (diambil dari transaksi PIUTANG milik pelanggan ini),
+    // lalu total tagihan. Kalau data item transaksi tidak tersedia (mis. mode Supabase
+    // tanpa tabel item), invoice tetap dibuat dengan satu baris "Total Tagihan".
     window.generateDebtInvoicePDF = async function(id) {
       const c = customers.find(x => x.id === id); if (!c) return;
       if (typeof window.jspdf === 'undefined') { showToast('Library PDF gagal dimuat', 'error'); return; }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      doc.setFontSize(16); doc.text('Kelontong Mart - Tagihan', 14, 18);
-      doc.setFontSize(11);
-      doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 14, 28);
-      doc.text(`Nama Pelanggan: ${c.nama}`, 14, 36);
-      doc.text(`No. WA: ${c.no_hp || '-'}`, 14, 44);
+      const invNo = 'INV-' + Date.now().toString().slice(-8);
+      const today = new Date();
+
+      // Header toko
+      doc.setFillColor(5, 150, 105);
+      doc.rect(0, 0, 210, 32, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(20); doc.setFont(undefined, 'bold');
+      doc.text('KELONTONG MART', 14, 16);
+      doc.setFontSize(9); doc.setFont(undefined, 'normal');
+      doc.text('Toko Sembako & Kebutuhan Harian', 14, 23);
+
+      // Judul & info invoice
+      doc.setTextColor(30,30,30);
+      doc.setFontSize(16); doc.setFont(undefined, 'bold');
+      doc.text('TAGIHAN / INVOICE', 14, 44);
+      doc.setFontSize(10); doc.setFont(undefined, 'normal');
+      doc.text(`No. Invoice: ${invNo}`, 14, 51);
+      doc.text(`Tanggal: ${today.toLocaleDateString('id-ID')}`, 14, 57);
+
+      // Kotak info pelanggan
+      doc.setDrawColor(220,220,220);
+      doc.roundedRect(120, 40, 76, 24, 2, 2);
+      doc.setFontSize(9); doc.setFont(undefined, 'bold');
+      doc.text('Kepada Yth:', 124, 47);
+      doc.setFont(undefined, 'normal');
+      doc.text(c.nama, 124, 53);
+      doc.text(`WA: ${c.no_hp || '-'}`, 124, 59);
+
+      // Ambil transaksi bon milik pelanggan ini untuk rincian barang
+      const custTx = transactions.filter(t => t.customer_nama && t.customer_nama.toLowerCase() === c.nama.toLowerCase() && t.metode_bayar === 'PIUTANG');
+      const rows = [];
+      custTx.forEach(t => {
+        (t.items || []).forEach(it => {
+          rows.push([
+            new Date(t.created_at).toLocaleDateString('id-ID'),
+            it.nama_produk,
+            it.qty,
+            'Rp ' + Number(it.harga_satuan).toLocaleString('id-ID'),
+            'Rp ' + Number(it.subtotal).toLocaleString('id-ID')
+          ]);
+        });
+      });
+
+      let finalY = 72;
+      if (rows.length > 0) {
+        doc.autoTable({
+          startY: 72,
+          head: [['Tanggal', 'Nama Barang', 'Qty', 'Harga Satuan', 'Subtotal']],
+          body: rows,
+          theme: 'striped',
+          headStyles: { fillColor: [5,150,105] },
+          styles: { fontSize: 9 },
+          margin: { left: 14, right: 14 }
+        });
+        finalY = doc.lastAutoTable.finalY + 6;
+      } else {
+        doc.setFontSize(9);
+        doc.text('(Rincian barang belum tersedia — hanya tersedia total sisa tagihan.)', 14, finalY);
+        finalY += 10;
+      }
+
+      // Total tagihan
+      doc.setDrawColor(200,200,200);
+      doc.line(14, finalY, 196, finalY);
+      finalY += 8;
+      doc.setFontSize(12); doc.setFont(undefined, 'bold');
+      doc.text('TOTAL TAGIHAN:', 120, finalY);
       doc.setFontSize(14);
-      doc.text(`Total Tagihan: Rp ${Number(c.total_piutang).toLocaleString('id-ID')}`, 14, 58);
-      doc.setFontSize(10);
-      doc.text('Mohon segera dilunasi. Terima kasih atas kepercayaannya.', 14, 70);
+      doc.text(`Rp ${Number(c.total_piutang).toLocaleString('id-ID')}`, 196, finalY, { align: 'right' });
+
+      finalY += 14;
+      doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100,100,100);
+      doc.text('Mohon segera dilunasi. Terima kasih atas kepercayaan Anda berbelanja di Kelontong Mart.', 14, finalY);
 
       const fileName = `Tagihan-${c.nama.replace(/\s+/g,'_')}.pdf`;
       const blob = doc.output('blob');
@@ -1058,21 +1200,48 @@
       document.getElementById('rep-today-debt').innerText = 'Rp ' + filtered.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0).toLocaleString('id-ID');
       document.getElementById('rep-today-paid').innerText = 'Rp 0';
 
-      // Produk paling laku (dihitung dari item transaksi lokal; mode Supabase butuh tabel item terpisah)
-      const topEl = document.getElementById('top-products-list');
-      const qtyMap = {};
-      filtered.forEach(t => { (t.items || []).forEach(it => { qtyMap[it.nama_produk] = (qtyMap[it.nama_produk] || 0) + Number(it.qty || 0); }); });
-      const topList = Object.entries(qtyMap).sort((a,b) => b[1]-a[1]).slice(0, 5);
-      topEl.innerHTML = topList.length
-        ? topList.map(([nama, qty], i) => `<div class="p-3 flex items-center justify-between"><span class="font-bold text-slate-800">${i+1}. ${nama}</span><span class="font-black text-brand-600">${qty} terjual</span></div>`).join('')
-        : '<div class="text-center text-slate-400 text-sm py-6">Belum ada data penjualan pada periode ini</div>';
+      // Total Penjualan per Produk — dipisah Tunai vs Bon supaya kelihatan barang apa dibeli
+      // tunai dan barang apa yang dihutang.
+      const prodMap = {}; // nama -> { qtyTunai, qtyBon, totalTunai, totalBon }
+      filtered.forEach(t => {
+        (t.items || []).forEach(it => {
+          if (!prodMap[it.nama_produk]) prodMap[it.nama_produk] = { qtyTunai: 0, qtyBon: 0, totalTunai: 0, totalBon: 0 };
+          const row = prodMap[it.nama_produk];
+          if (t.metode_bayar === 'PIUTANG') { row.qtyBon += Number(it.qty||0); row.totalBon += Number(it.subtotal||0); }
+          else { row.qtyTunai += Number(it.qty||0); row.totalTunai += Number(it.subtotal||0); }
+        });
+      });
+      const prodRows = Object.entries(prodMap).sort((a,b) => (b[1].totalTunai+b[1].totalBon) - (a[1].totalTunai+a[1].totalBon));
+      const tbody = document.getElementById('sales-per-product-body');
+      tbody.innerHTML = prodRows.length
+        ? prodRows.map(([nama, r]) => `
+            <tr>
+              <td class="p-2.5 font-bold text-slate-800">${nama}</td>
+              <td class="p-2.5 text-center text-emerald-600 font-semibold">${r.qtyTunai}</td>
+              <td class="p-2.5 text-center text-amber-600 font-semibold">${r.qtyBon}</td>
+              <td class="p-2.5 text-right font-black text-slate-900">Rp ${(r.totalTunai+r.totalBon).toLocaleString('id-ID')}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada data penjualan pada periode ini</td></tr>`;
 
       if (filtered.length === 0) { listEl.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">Belum ada transaksi pada periode ini</div>'; return; }
-      listEl.innerHTML = filtered.map(t => `
-        <div class="p-3 flex items-center justify-between">
-          <div><h5 class="font-bold text-slate-800">${t.no_struk||'-'}</h5><span class="text-xs text-slate-400">${t.metode_bayar||''}${t.customer_nama ? ' · '+t.customer_nama : ''}</span></div>
-          <span class="font-black text-slate-900">Rp ${Number(t.total_akhir||0).toLocaleString('id-ID')}</span>
-        </div>`).join('');
+      listEl.innerHTML = filtered.map(t => {
+        const isBon = t.metode_bayar === 'PIUTANG';
+        const itemsText = (t.items || []).map(it => `${it.nama_produk} x${it.qty}`).join(', ') || '-';
+        return `
+        <div class="p-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h5 class="font-bold text-slate-800">${t.no_struk||'-'}</h5>
+              <span class="text-xs text-slate-400">${t.customer_nama ? t.customer_nama : 'Umum'}</span>
+            </div>
+            <div class="text-right">
+              <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isBon ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${isBon ? 'BON' : 'TUNAI'}</span>
+              <div class="font-black text-slate-900 mt-0.5">Rp ${Number(t.total_akhir||0).toLocaleString('id-ID')}</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">🛒 ${itemsText}</p>
+        </div>`;
+      }).join('');
     };
 
     // LOGIKA KERANJANG
