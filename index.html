@@ -31,7 +31,14 @@
   <style>
     /* Styling Mobile & Isolasi Klik */
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+    @supports (height: 100dvh) { html, body { height: 100dvh; } }
     body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .app-shell { height: 100%; }
+    @supports (height: 100dvh) { .app-shell { height: 100dvh; } }
+    main, #cart-items-container, .hide-scrollbar, #product-modal .overflow-y-auto, #payment-modal .overflow-y-auto {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
     button, [role="button"], .cat-chip, .nav-item { touch-action: manipulation; }
     /* Cegah auto-zoom iOS saat fokus input (butuh font-size >= 16px) tanpa mengubah tampilan visual */
     input, select, textarea { font-size: 16px !important; }
@@ -69,7 +76,7 @@
   </div>
 
   <!-- Mobile Container Viewport -->
-  <div class="w-full max-w-md h-full bg-slate-100 flex flex-col shadow-2xl relative overflow-hidden mx-auto">
+  <div class="w-full max-w-md app-shell bg-slate-100 flex flex-col shadow-2xl relative overflow-hidden mx-auto">
 
     <!-- Top Mobile Bar -->
     <header class="bg-brand-600 text-white shadow-sm flex-shrink-0 z-20">
@@ -79,7 +86,7 @@
             <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           </div>
           <div>
-            <h1 class="font-extrabold text-base leading-none tracking-tight">Kelontong Mart</h1>
+            <h1 id="app-title-header" class="font-extrabold text-base leading-none tracking-tight">Kelontong Mart</h1>
             <p class="text-xs text-brand-100 flex items-center gap-1.5 mt-1">
               <span id="connection-indicator" class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
               <span id="connection-status" class="font-medium">Mode Lokal / Belum Setup</span>
@@ -94,7 +101,7 @@
             <span class="text-xs font-bold pointer-events-none">Scan</span>
           </button>
           <!-- Tombol Install App -->
-          <button type="button" onclick="handleInstallClick()" class="p-2.5 bg-brand-700 active:bg-brand-800 rounded-xl transition shadow-sm" title="Install Aplikasi">
+          <button type="button" onclick="handleInstallClick()" id="btn-install-header" class="p-2.5 bg-brand-700 active:bg-brand-800 rounded-xl transition shadow-sm" title="Install Aplikasi">
             <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" /></svg>
           </button>
           <!-- Tombol Pengaturan -->
@@ -340,7 +347,7 @@
     <!-- Modal Form Barang -->
     <div id="product-modal" class="modal-hidden absolute inset-0 bg-black/60 z-50 flex items-end justify-center">
       <div class="bg-white rounded-t-3xl w-full p-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between border-b pb-2 mb-2"><h3 class="font-bold text-sm">Tambah Barang</h3><button onclick="closeProductModal()" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+        <div class="flex justify-between border-b pb-2 mb-2"><h3 id="product-modal-title" class="font-bold text-sm">Tambah Barang</h3><button onclick="closeProductModal()" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
         <div class="space-y-2">
           <div class="flex gap-2">
             <input type="text" id="prod-barcode" placeholder="Barcode (Opsional)" class="w-full p-3 text-base border rounded-xl">
@@ -366,7 +373,7 @@
             <input type="number" id="prod-stock" placeholder="Stok Awal" class="w-full p-3 text-base border rounded-xl">
             <input type="number" id="prod-min" placeholder="Stok Minimum (5)" class="w-full p-3 text-base border rounded-xl">
           </div>
-          <button type="button" onclick="saveProduct()" class="w-full py-4 bg-brand-600 text-white rounded-xl text-base font-black shadow-md mt-2">Simpan Barang</button>
+          <button type="button" onclick="saveProduct()" id="btn-save-product" class="w-full py-4 bg-brand-600 text-white rounded-xl text-base font-black shadow-md mt-2">Simpan Barang</button>
         </div>
       </div>
     </div>
@@ -383,17 +390,36 @@
       </div>
     </div>
 
+    <!-- Modal Edit Pelanggan -->
+    <div id="edit-customer-modal" class="modal-hidden absolute inset-0 bg-black/60 z-50 flex items-end justify-center">
+      <div class="bg-white rounded-t-3xl w-full p-4 shadow-2xl space-y-2">
+        <div class="flex justify-between border-b pb-2 mb-1"><h3 class="font-bold text-sm">Edit Pelanggan</h3><button onclick="closeModal('edit-customer-modal')" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+        <input type="hidden" id="edit-cust-id">
+        <input type="text" id="edit-cust-name" placeholder="Nama Lengkap *" class="w-full p-2.5 text-sm border rounded-xl">
+        <input type="tel" id="edit-cust-phone" placeholder="No. WA (0812xxx)" class="w-full p-2.5 text-sm border rounded-xl">
+        <button type="button" onclick="saveCustomerEdit()" class="w-full py-3 bg-brand-600 text-white rounded-xl text-sm font-black shadow-md mt-2">Simpan Perubahan</button>
+      </div>
+    </div>
+
     <!-- Modal Pengaturan Supabase -->
     <div id="config-modal" class="modal-hidden absolute inset-0 bg-black/60 z-50 flex items-end justify-center">
-      <div class="bg-white rounded-t-3xl w-full p-4 shadow-2xl space-y-2">
-        <div class="flex justify-between border-b pb-2 mb-1"><h3 class="font-bold text-sm">Koneksi Supabase</h3><button onclick="closeConfigModal()" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
-        <input type="text" id="cfg-supabase-url" placeholder="Project URL (https://xyz...)" class="w-full p-2 text-xs border rounded-xl">
-        <input type="password" id="cfg-supabase-key" placeholder="Anon Key (eyJhbG...)" class="w-full p-2 text-xs border rounded-xl">
-        <div class="pt-1 border-t border-slate-100 mt-1">
-          <label class="block text-[11px] font-bold text-slate-600 mb-1 mt-1">Email Pemilik Toko (untuk rekap harian)</label>
-          <input type="email" id="cfg-owner-email" placeholder="pemilik@email.com" class="w-full p-2 text-xs border rounded-xl">
+      <div class="bg-white rounded-t-3xl w-full p-4 shadow-2xl space-y-2 max-h-[85vh] overflow-y-auto">
+        <div class="flex justify-between border-b pb-2 mb-1"><h3 class="font-bold text-sm">Pengaturan</h3><button onclick="closeConfigModal()" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Toko</label>
+          <input type="text" id="cfg-store-name" placeholder="Kelontong Mart" class="w-full p-2.5 text-sm border rounded-xl">
+          <p class="text-[10px] text-slate-400 mt-1">Nama ini dipakai di judul aplikasi, invoice, dan email rekap. Label ikon layar utama (Android) tetap mengikuti manifest.json.</p>
         </div>
-        <button type="button" onclick="saveSupabaseConfig()" class="w-full py-3 bg-brand-600 text-white rounded-xl text-xs font-black shadow-md mt-2">Simpan & Konek</button>
+        <div class="pt-2 border-t border-slate-100">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Koneksi Supabase (opsional)</label>
+          <input type="text" id="cfg-supabase-url" placeholder="Project URL (https://xyz...)" class="w-full p-2.5 text-sm border rounded-xl mb-2">
+          <input type="password" id="cfg-supabase-key" placeholder="Anon Key (eyJhbG...)" class="w-full p-2.5 text-sm border rounded-xl">
+        </div>
+        <div class="pt-1 border-t border-slate-100 mt-1">
+          <label class="block text-xs font-bold text-slate-600 mb-1 mt-1">Email Pemilik Toko (untuk rekap)</label>
+          <input type="email" id="cfg-owner-email" placeholder="pemilik@email.com" class="w-full p-2.5 text-sm border rounded-xl">
+        </div>
+        <button type="button" onclick="saveSupabaseConfig()" class="w-full py-3.5 bg-brand-600 text-white rounded-xl text-sm font-black shadow-md mt-2">Simpan Pengaturan</button>
       </div>
     </div>
 
@@ -436,13 +462,27 @@
     const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     const isIOS = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 
+    // Tombol "Install" di header hanya relevan selama app masih dibuka lewat browser biasa
+    // (Chrome/Safari). Begitu app sudah berjalan sebagai PWA ter-install (standalone),
+    // tombol ini disembunyikan karena tidak ada lagi yang perlu di-install.
+    window.updateInstallButtonVisibility = function() {
+      const btn = document.getElementById('btn-install-header');
+      if (btn) btn.classList.toggle('hidden', isStandalone());
+    };
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
       if (!isStandalone()) showInstallBanner();
+      updateInstallButtonVisibility();
     });
 
-    window.addEventListener('appinstalled', () => { deferredPrompt = null; dismissInstallPWA(); });
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; dismissInstallPWA(); updateInstallButtonVisibility(); });
+
+    // Beberapa browser tidak memicu event 'appinstalled'/'beforeinstallprompt' secara konsisten
+    // (mis. saat status standalone berubah di tab yang sudah terbuka lama), jadi kita cek ulang
+    // status standalone tiap kali tab kembali terlihat.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) updateInstallButtonVisibility(); });
 
     function showInstallBanner() {
       const banner = document.getElementById('pwa-install-banner');
@@ -454,7 +494,7 @@
       if (!deferredPrompt) { handleInstallClick(); return; }
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') dismissInstallPWA();
+      if (outcome === 'accepted') { dismissInstallPWA(); updateInstallButtonVisibility(); }
       deferredPrompt = null;
     }
 
@@ -486,7 +526,7 @@
     // const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycb.../exec';
     // Selama masih kosong (''), tombol "Kirim Rekap ke Email" akan memberi peringatan
     // dan tidak melakukan apa-apa, bukan menyebabkan error diam-diam.
-    const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzbz4s-XIWi3S7AB6aJ0LM8eaB-jCkPmY_NWIJ4V2PiiFLvKndWWciRee82lo8WmOI7nQ/exec';
+    const GAS_ENDPOINT = '';
     // =====================================================================
 
     // --- STATE & FUNGSI UTAMA APLIKASI ---
@@ -573,7 +613,20 @@
     };
     // ================= END SCANNER =================
 
+    // Nama toko bisa diubah di Pengaturan; dipakai di judul aplikasi, invoice, dan email.
+    // CATATAN: label ikon di layar utama Android mengikuti manifest.json (file statis, tidak
+    // bisa diubah lewat JS setelah ter-install), tapi document.title & meta apple-mobile-web-app-title
+    // untuk iOS akan mengikuti nama ini.
+    window.getStoreName = function() { return safeStorage.getItem('kelontong_store_name') || 'Kelontong Mart'; };
+    window.applyStoreName = function() {
+      const name = getStoreName();
+      document.title = name + ' - Mobile POS';
+      const h1 = document.getElementById('app-title-header'); if (h1) h1.innerText = name;
+      const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (appleTitle) appleTitle.setAttribute('content', name);
+    };
+
     window.openConfigModal = () => {
+      document.getElementById('cfg-store-name').value = getStoreName();
       document.getElementById('cfg-supabase-url').value = safeStorage.getItem('kelontong_sb_url');
       document.getElementById('cfg-supabase-key').value = safeStorage.getItem('kelontong_sb_key');
       document.getElementById('cfg-owner-email').value = safeStorage.getItem('kelontong_owner_email');
@@ -581,16 +634,20 @@
     };
     window.closeConfigModal = () => closeModal('config-modal');
     window.saveSupabaseConfig = function() {
+      const storeName = document.getElementById('cfg-store-name').value.trim();
       const url = document.getElementById('cfg-supabase-url').value.trim();
       const key = document.getElementById('cfg-supabase-key').value.trim();
       const email = document.getElementById('cfg-owner-email').value.trim();
-      if (!url || !key) { showToast('URL & Key wajib diisi', 'error'); return; }
-      safeStorage.setItem('kelontong_sb_url', url);
-      safeStorage.setItem('kelontong_sb_key', key);
+      safeStorage.setItem('kelontong_store_name', storeName || 'Kelontong Mart');
+      applyStoreName();
+      if (url && key) {
+        safeStorage.setItem('kelontong_sb_url', url);
+        safeStorage.setItem('kelontong_sb_key', key);
+      }
       safeStorage.setItem('kelontong_owner_email', email);
       closeConfigModal();
-      showToast('Konfigurasi disimpan, menyambungkan...');
-      bootApp();
+      showToast('Pengaturan disimpan');
+      if (url && key) bootApp();
     };
 
     // ================= REKAP LENGKAP (PDF) =================
@@ -608,7 +665,7 @@
       doc.rect(0, 0, 210, 26, 'F');
       doc.setTextColor(255,255,255);
       doc.setFontSize(17); doc.setFont(undefined, 'bold');
-      doc.text('KELONTONG MART', 14, 14);
+      doc.text(getStoreName().toUpperCase(), 14, 14);
       doc.setFontSize(10); doc.setFont(undefined, 'normal');
       doc.text('Rekap Lengkap Toko', 14, 21);
       doc.setTextColor(30,30,30);
@@ -618,9 +675,11 @@
       let y = 40;
 
       // Ringkasan Omzet
-      const omset = filtered.reduce((a,b)=>a+Number(b.total_akhir||0),0);
+      const salesTx = filtered.filter(t => t.metode_bayar !== 'BAYAR_BON');
+      const omset = salesTx.reduce((a,b)=>a+Number(b.total_akhir||0),0);
       const totalTunai = filtered.filter(t=>t.metode_bayar==='TUNAI').reduce((a,b)=>a+Number(b.total_akhir||0),0);
       const piutangBaru = filtered.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0);
+      const pelunasanMasuk = filtered.filter(t=>t.metode_bayar==='BAYAR_BON').reduce((a,b)=>a+Number(b.total_akhir||0),0);
       doc.autoTable({
         startY: y,
         head: [['Ringkasan Omzet', 'Nilai']],
@@ -628,7 +687,8 @@
           ['Total Omzet', 'Rp ' + omset.toLocaleString('id-ID')],
           ['Penjualan Tunai', 'Rp ' + totalTunai.toLocaleString('id-ID')],
           ['Bon Baru (Piutang)', 'Rp ' + piutangBaru.toLocaleString('id-ID')],
-          ['Jumlah Transaksi', String(filtered.length)]
+          ['Pelunasan Bon Masuk', 'Rp ' + pelunasanMasuk.toLocaleString('id-ID')],
+          ['Jumlah Transaksi Penjualan', String(salesTx.length)]
         ],
         theme: 'grid', headStyles: { fillColor: [5,150,105] }, styles: { fontSize: 9 }, margin: { left: 14, right: 14 }
       });
@@ -688,23 +748,34 @@
       });
       y = doc.lastAutoTable.finalY + 8;
 
-      // Riwayat Transaksi (dengan keterangan Tunai/Bon dan barang yang dibeli)
+      // Riwayat Transaksi (dengan keterangan Tunai/Bon/Bayar Bon, tanggal, dan barang yang dibeli)
       if (y > 230) { doc.addPage(); y = 14; }
-      const txRows = filtered.map(t => [
-        new Date(t.created_at).toLocaleDateString('id-ID'),
-        t.no_struk || '-',
-        t.customer_nama || 'Umum',
-        t.metode_bayar === 'PIUTANG' ? 'BON' : 'TUNAI',
-        (t.items||[]).map(it => `${it.nama_produk} x${it.qty}`).join(', ') || '-',
-        'Rp ' + Number(t.total_akhir||0).toLocaleString('id-ID')
-      ]);
+      const sortedFiltered = [...filtered].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+      const txRows = sortedFiltered.map(t => {
+        const tipe = t.metode_bayar === 'BAYAR_BON' ? 'PELUNASAN' : (t.metode_bayar === 'PIUTANG' ? 'BON' : 'TUNAI');
+        const barang = tipe === 'PELUNASAN' ? ('Pelunasan bon' + (t.catatan ? ' — ' + t.catatan : '')) : ((t.items||[]).map(it => `${it.nama_produk} x${it.qty}`).join(', ') || '-');
+        return [
+          t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-',
+          t.no_struk || '-',
+          t.customer_nama || 'Umum',
+          tipe,
+          barang,
+          'Rp ' + Number(t.total_akhir||0).toLocaleString('id-ID')
+        ];
+      });
       doc.autoTable({
         startY: y,
-        head: [['Tanggal', 'No. Struk', 'Pelanggan', 'Ket.', 'Barang Dibeli', 'Total']],
+        head: [['Tanggal', 'No. Struk', 'Pelanggan', 'Ket.', 'Barang Dibeli / Catatan', 'Total']],
         body: txRows.length ? txRows : [['-', '-', '-', '-', 'Belum ada transaksi pada periode ini', '-']],
         theme: 'grid', headStyles: { fillColor: [51,65,85] }, styles: { fontSize: 7.5, cellWidth: 'wrap' },
-        columnStyles: { 4: { cellWidth: 55 } }, margin: { left: 14, right: 14 },
-        didParseCell: (data) => { if (data.section==='body' && data.column.index===3) { data.cell.styles.textColor = data.cell.raw==='BON' ? [217,119,6] : [5,150,105]; data.cell.styles.fontStyle='bold'; } }
+        columnStyles: { 4: { cellWidth: 50 } }, margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.section==='body' && data.column.index===3) {
+            const colors = { BON: [217,119,6], TUNAI: [5,150,105], PELUNASAN: [37,99,235] };
+            data.cell.styles.textColor = colors[data.cell.raw] || [30,30,30];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
       });
 
       return doc;
@@ -733,7 +804,7 @@
         const base64 = doc.output('datauristring').split(',')[1];
         const res = await fetch(GAS_ENDPOINT, {
           method: 'POST',
-          body: JSON.stringify({ action: 'send_full_recap_pdf', email, pdfBase64: base64, fileName: `Rekap-Kelontong-${new Date().toISOString().slice(0,10)}.pdf` })
+          body: JSON.stringify({ action: 'send_full_recap_pdf', email, pdfBase64: base64, fileName: `Rekap-${getStoreName().replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.pdf`, storeName: getStoreName() })
         });
         const data = await res.json();
         if (data.status === 'success') showToast('Rekap PDF terkirim ke ' + email);
@@ -756,7 +827,7 @@
       const blob = doc.output('blob');
       const file = new File([blob], fileName, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: 'Rekap Kelontong Mart', text: 'Rekap penjualan & stok Kelontong Mart' }); return; }
+        try { await navigator.share({ files: [file], title: 'Rekap ' + getStoreName(), text: 'Rekap penjualan & stok ' + getStoreName() }); return; }
         catch (e) { /* pengguna batal, lanjut unduh biasa */ }
       }
       doc.save(fileName);
@@ -764,9 +835,29 @@
     };
     // ================= END REKAP LENGKAP =================
 
+    let editingProductId = null;
     window.openProductModal = () => {
+      editingProductId = null;
       ['prod-barcode','prod-name','prod-cat','prod-unit','prod-buy','prod-sell','prod-stock','prod-min'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('barcode-preview-wrap').classList.add('hidden');
+      document.getElementById('product-modal-title').innerText = 'Tambah Barang';
+      document.getElementById('btn-save-product').innerText = 'Simpan Barang';
+      openModal('product-modal');
+    };
+    window.editProduct = (id) => {
+      const p = products.find(x => x.id === id); if (!p) return;
+      editingProductId = id;
+      document.getElementById('prod-barcode').value = p.barcode || '';
+      document.getElementById('prod-name').value = p.nama || '';
+      document.getElementById('prod-cat').value = p.kategori || '';
+      document.getElementById('prod-unit').value = p.satuan || '';
+      document.getElementById('prod-buy').value = p.harga_beli || '';
+      document.getElementById('prod-sell').value = p.harga_jual || '';
+      document.getElementById('prod-stock').value = p.stok || '';
+      document.getElementById('prod-min').value = p.stok_minimum || '';
+      document.getElementById('product-modal-title').innerText = 'Edit Barang';
+      document.getElementById('btn-save-product').innerText = 'Simpan Perubahan';
+      renderBarcodePreview();
       openModal('product-modal');
     };
     window.closeProductModal = () => closeModal('product-modal');
@@ -826,8 +917,7 @@
       const nama = document.getElementById('prod-name').value.trim();
       const harga_jual = Number(document.getElementById('prod-sell').value) || 0;
       if (!nama || harga_jual <= 0) { showToast('Nama & Harga Jual wajib diisi', 'error'); return; }
-      const newProd = {
-        id: 'local-' + Date.now(),
+      const payload = {
         barcode: document.getElementById('prod-barcode').value.trim(),
         nama, kategori: document.getElementById('prod-cat').value.trim() || 'Umum',
         satuan: document.getElementById('prod-unit').value.trim() || 'pcs',
@@ -836,17 +926,26 @@
         stok: Number(document.getElementById('prod-stock').value) || 0,
         stok_minimum: Number(document.getElementById('prod-min').value) || 5
       };
-      if (db) {
-        try {
-          const { id, ...payload } = newProd;
-          const { error } = await db.from('products').insert(payload);
-          if (error) throw error;
-          await fetchSupabase();
-        } catch (e) { showToast('Gagal simpan ke Supabase', 'error'); return; }
+      if (editingProductId) {
+        if (db) {
+          try { const { error } = await db.from('products').update(payload).eq('id', editingProductId); if (error) throw error; await fetchSupabase(); }
+          catch (e) { showToast('Gagal update ke Supabase', 'error'); return; }
+        } else {
+          const p = products.find(x => x.id === editingProductId);
+          if (p) Object.assign(p, payload);
+          renderPosProducts(); renderStockList();
+        }
       } else {
-        products.push(newProd);
-        renderPosProducts(); renderStockList();
+        const newProd = { id: 'local-' + Date.now(), ...payload };
+        if (db) {
+          try { const { error } = await db.from('products').insert(payload); if (error) throw error; await fetchSupabase(); }
+          catch (e) { showToast('Gagal simpan ke Supabase', 'error'); return; }
+        } else {
+          products.push(newProd);
+          renderPosProducts(); renderStockList();
+        }
       }
+      editingProductId = null;
       ['prod-barcode','prod-name','prod-cat','prod-unit','prod-buy','prod-sell','prod-stock','prod-min'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('barcode-preview-wrap').classList.add('hidden');
       closeProductModal();
@@ -877,7 +976,7 @@
     window.remindCustomerDebtWA = function(id) {
       const c = customers.find(x => x.id === id); if (!c) return;
       if (!c.no_hp) { showToast('No. WA pelanggan ini belum tercatat', 'error'); return; }
-      const toko = 'Kelontong Mart';
+      const toko = getStoreName();
       const pesan = `Halo ${c.nama}, ini pengingat dari ${toko}.\nSisa bon Anda saat ini: Rp ${Number(c.total_piutang).toLocaleString('id-ID')}.\nMohon segera dilunasi ya, terima kasih 🙏`;
       window.open(`https://wa.me/${normalizePhoneWA(c.no_hp)}?text=${encodeURIComponent(pesan)}`, '_blank');
     };
@@ -899,7 +998,7 @@
       doc.rect(0, 0, 210, 32, 'F');
       doc.setTextColor(255,255,255);
       doc.setFontSize(20); doc.setFont(undefined, 'bold');
-      doc.text('KELONTONG MART', 14, 16);
+      doc.text(getStoreName().toUpperCase(), 14, 16);
       doc.setFontSize(9); doc.setFont(undefined, 'normal');
       doc.text('Toko Sembako & Kebutuhan Harian', 14, 23);
 
@@ -920,13 +1019,14 @@
       doc.text(c.nama, 124, 53);
       doc.text(`WA: ${c.no_hp || '-'}`, 124, 59);
 
-      // Ambil transaksi bon milik pelanggan ini untuk rincian barang
-      const custTx = transactions.filter(t => t.customer_nama && t.customer_nama.toLowerCase() === c.nama.toLowerCase() && t.metode_bayar === 'PIUTANG');
+      // Ambil transaksi bon milik pelanggan ini untuk rincian barang yang dihutang
+      const custTx = transactions.filter(t => t.customer_nama && t.customer_nama.toLowerCase() === c.nama.toLowerCase() && t.metode_bayar === 'PIUTANG')
+        .sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
       const rows = [];
       custTx.forEach(t => {
         (t.items || []).forEach(it => {
           rows.push([
-            new Date(t.created_at).toLocaleDateString('id-ID'),
+            t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-',
             it.nama_produk,
             it.qty,
             'Rp ' + Number(it.harga_satuan).toLocaleString('id-ID'),
@@ -936,9 +1036,10 @@
       });
 
       let finalY = 72;
+      doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text('Rincian Barang yang Dihutang', 14, finalY); finalY += 5;
       if (rows.length > 0) {
         doc.autoTable({
-          startY: 72,
+          startY: finalY,
           head: [['Tanggal', 'Nama Barang', 'Qty', 'Harga Satuan', 'Subtotal']],
           body: rows,
           theme: 'striped',
@@ -946,14 +1047,34 @@
           styles: { fontSize: 9 },
           margin: { left: 14, right: 14 }
         });
-        finalY = doc.lastAutoTable.finalY + 6;
+        finalY = doc.lastAutoTable.finalY + 8;
       } else {
-        doc.setFontSize(9);
-        doc.text('(Rincian barang belum tersedia — hanya tersedia total sisa tagihan.)', 14, finalY);
-        finalY += 10;
+        doc.setFontSize(9); doc.setFont(undefined, 'normal');
+        doc.text('(Rincian barang belum tersedia — hanya tersedia total sisa tagihan.)', 14, finalY + 5);
+        finalY += 15;
+      }
+
+      // Riwayat pelunasan (pembayaran bertahap) milik pelanggan ini — supaya transparan
+      // kapan saja pelanggan sudah pernah membayar sebagian.
+      const payHist = transactions.filter(t => t.customer_nama && t.customer_nama.toLowerCase() === c.nama.toLowerCase() && t.metode_bayar === 'BAYAR_BON')
+        .sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
+      if (payHist.length > 0) {
+        doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text('Riwayat Pelunasan', 14, finalY); finalY += 5;
+        doc.autoTable({
+          startY: finalY,
+          head: [['Tanggal', 'Nominal Dibayar', 'Catatan']],
+          body: payHist.map(t => [
+            t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-',
+            'Rp ' + Number(t.total_akhir||0).toLocaleString('id-ID'),
+            t.catatan || '-'
+          ]),
+          theme: 'striped', headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 9 }, margin: { left: 14, right: 14 }
+        });
+        finalY = doc.lastAutoTable.finalY + 8;
       }
 
       // Total tagihan
+      if (finalY > 260) { doc.addPage(); finalY = 20; }
       doc.setDrawColor(200,200,200);
       doc.line(14, finalY, 196, finalY);
       finalY += 8;
@@ -964,7 +1085,7 @@
 
       finalY += 14;
       doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100,100,100);
-      doc.text('Mohon segera dilunasi. Terima kasih atas kepercayaan Anda berbelanja di Kelontong Mart.', 14, finalY);
+      doc.text(`Mohon segera dilunasi. Terima kasih atas kepercayaan Anda berbelanja di ${getStoreName()}.`, 14, finalY);
 
       const fileName = `Tagihan-${c.nama.replace(/\s+/g,'_')}.pdf`;
       const blob = doc.output('blob');
@@ -972,7 +1093,7 @@
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: 'Tagihan ' + c.nama, text: 'Tagihan dari Kelontong Mart untuk ' + c.nama });
+          await navigator.share({ files: [file], title: 'Tagihan ' + c.nama, text: 'Tagihan dari ' + getStoreName() + ' untuk ' + c.nama });
           return;
         } catch (e) { /* pengguna batal share, lanjut unduh biasa di bawah */ }
       }
@@ -983,18 +1104,29 @@
     window.submitDebtPayment = async function() {
       const id = document.getElementById('debt-cust-id').value;
       const bayar = Number(document.getElementById('debt-pay-amount').value) || 0;
+      const notes = document.getElementById('debt-pay-notes').value.trim();
       const c = customers.find(x => x.id === id);
       if (!c || bayar <= 0) { showToast('Nominal tidak valid', 'error'); return; }
       const sisaBaru = Math.max(0, Number(c.total_piutang) - bayar);
+      const ns = 'BYR-' + Date.now().toString().slice(-6);
       if (db) {
         try {
           const { error } = await db.from('customers').update({ total_piutang: sisaBaru }).eq('id', id);
           if (error) throw error;
+          // Catat log pelunasan sebagai transaksi tersendiri (best-effort — kalau skema tabel
+          // 'transactions' di Supabase tidak punya kolom ini, gagal sunyi tanpa mengganggu proses utama).
+          try {
+            await db.from('transactions').insert({
+              no_struk: ns, metode_bayar: 'BAYAR_BON', total_akhir: bayar, sisa_piutang: 0,
+              customer_nama: c.nama, catatan: notes, items: []
+            });
+          } catch (e2) { /* skema tabel mungkin belum mendukung, lanjutkan saja */ }
           await fetchSupabase();
         } catch (e) { showToast('Gagal update Supabase', 'error'); return; }
       } else {
         c.total_piutang = sisaBaru;
-        renderCustomerDebt();
+        transactions.unshift({ no_struk: ns, metode_bayar: 'BAYAR_BON', total_akhir: bayar, sisa_piutang: 0, customer_nama: c.nama, catatan: notes, created_at: new Date().toISOString(), items: [] });
+        renderCustomerDebt(); loadHistoryTransactions();
       }
       closeDebtPayModal();
       showToast('Pelunasan tersimpan');
@@ -1015,6 +1147,7 @@
 
     // INIT DATABASE (SUPABASE / LOKAL)
     window.bootApp = function() {
+      applyStoreName();
       const url = safeStorage.getItem('kelontong_sb_url');
       const key = safeStorage.getItem('kelontong_sb_key');
       if (url && key && window.supabase) {
@@ -1026,6 +1159,7 @@
         loadDummyData();
       }
       if (isStandalone()) dismissInstallPWA();
+      updateInstallButtonVisibility();
     };
 
     async function fetchSupabase() {
@@ -1087,12 +1221,15 @@
       const q = (document.getElementById('stock-search').value || '').toLowerCase();
       let list = products.filter(p => p.nama.toLowerCase().includes(q));
       if (isLowStockOnly) list = list.filter(p => p.stok <= p.stok_minimum);
-      if (list.length === 0) { container.innerHTML = '<div class="text-center text-slate-400 text-xs py-8">Tidak ada data</div>'; return; }
+      if (list.length === 0) { container.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">Tidak ada data</div>'; return; }
       container.innerHTML = list.map(p => {
         const isLow = p.stok <= p.stok_minimum;
-        return `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-          <div><h4 class="font-bold text-xs text-slate-800">${p.nama}</h4><span class="text-[10px] text-slate-400">${p.kategori||'Umum'} · Rp ${p.harga_jual.toLocaleString('id-ID')}</span></div>
-          <span class="text-xs font-black px-2 py-1 rounded-lg ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-600'}">${p.stok} stok</span>
+        return `<div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-2">
+          <div class="min-w-0"><h4 class="font-bold text-sm text-slate-800 truncate">${p.nama}</h4><span class="text-xs text-slate-400">${p.kategori||'Umum'} · Rp ${p.harga_jual.toLocaleString('id-ID')}</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-xs font-black px-2 py-1 rounded-lg ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-600'}">${p.stok} stok</span>
+            <button onclick="editProduct('${p.id}')" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+          </div>
         </div>`;
       }).join('');
     };
@@ -1120,7 +1257,10 @@
       container.innerHTML = list.map(c => `
         <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
-            <div><h4 class="font-bold text-sm text-slate-800">${c.nama}</h4><span class="text-xs text-slate-400">${c.no_hp||'No. WA belum ada'}</span></div>
+            <div class="flex items-center gap-1.5">
+              <div><h4 class="font-bold text-sm text-slate-800">${c.nama}</h4><span class="text-xs text-slate-400">${c.no_hp||'No. WA belum ada'}</span></div>
+              <button onclick="editCustomer('${c.id}')" class="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0" title="Edit"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+            </div>
             <span class="text-sm font-black text-amber-600">Rp ${Number(c.total_piutang).toLocaleString('id-ID')}</span>
           </div>
           <div class="grid grid-cols-3 gap-1.5">
@@ -1131,6 +1271,32 @@
         </div>`).join('');
     };
     window.filterDebtCustomers = () => renderCustomerDebt();
+
+    // ================= EDIT PELANGGAN =================
+    window.editCustomer = (id) => {
+      const c = customers.find(x => x.id === id); if (!c) return;
+      document.getElementById('edit-cust-id').value = c.id;
+      document.getElementById('edit-cust-name').value = c.nama;
+      document.getElementById('edit-cust-phone').value = c.no_hp || '';
+      openModal('edit-customer-modal');
+    };
+    window.saveCustomerEdit = async function() {
+      const id = document.getElementById('edit-cust-id').value;
+      const nama = document.getElementById('edit-cust-name').value.trim();
+      const no_hp = document.getElementById('edit-cust-phone').value.trim();
+      if (!nama) { showToast('Nama wajib diisi', 'error'); return; }
+      if (db) {
+        try { const { error } = await db.from('customers').update({ nama, no_hp }).eq('id', id); if (error) throw error; await fetchSupabase(); }
+        catch (e) { showToast('Gagal update ke Supabase', 'error'); return; }
+      } else {
+        const c = customers.find(x => x.id === id);
+        if (c) { c.nama = nama; c.no_hp = no_hp; }
+        renderCustomerDebt(); populateCustomerSelect();
+      }
+      closeModal('edit-customer-modal');
+      showToast('Data pelanggan diperbarui');
+    };
+    // ================= END EDIT PELANGGAN =================
     window.populateCustomerSelect = function() {
       const dl = document.getElementById('customer-namelist');
       if (!dl) return;
@@ -1195,13 +1361,13 @@
         return d >= from && d <= to;
       });
 
-      document.getElementById('rep-today-omset').innerText = 'Rp ' + filtered.reduce((a,b)=>a+Number(b.total_akhir||0),0).toLocaleString('id-ID');
-      document.getElementById('rep-today-count').innerText = filtered.length;
+      document.getElementById('rep-today-omset').innerText = 'Rp ' + filtered.filter(t=>t.metode_bayar!=='BAYAR_BON').reduce((a,b)=>a+Number(b.total_akhir||0),0).toLocaleString('id-ID');
+      document.getElementById('rep-today-count').innerText = filtered.filter(t=>t.metode_bayar!=='BAYAR_BON').length;
       document.getElementById('rep-today-debt').innerText = 'Rp ' + filtered.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0).toLocaleString('id-ID');
-      document.getElementById('rep-today-paid').innerText = 'Rp 0';
+      document.getElementById('rep-today-paid').innerText = 'Rp ' + filtered.filter(t=>t.metode_bayar==='BAYAR_BON').reduce((a,b)=>a+Number(b.total_akhir||0),0).toLocaleString('id-ID');
 
       // Total Penjualan per Produk — dipisah Tunai vs Bon supaya kelihatan barang apa dibeli
-      // tunai dan barang apa yang dihutang.
+      // tunai dan barang apa yang dihutang. (Transaksi BAYAR_BON tidak punya item, otomatis dilewati.)
       const prodMap = {}; // nama -> { qtyTunai, qtyBon, totalTunai, totalBon }
       filtered.forEach(t => {
         (t.items || []).forEach(it => {
@@ -1224,18 +1390,25 @@
         : `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada data penjualan pada periode ini</td></tr>`;
 
       if (filtered.length === 0) { listEl.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">Belum ada transaksi pada periode ini</div>'; return; }
-      listEl.innerHTML = filtered.map(t => {
-        const isBon = t.metode_bayar === 'PIUTANG';
-        const itemsText = (t.items || []).map(it => `${it.nama_produk} x${it.qty}`).join(', ') || '-';
+      // Urutkan terbaru dulu supaya riwayat mudah dibaca
+      const sorted = [...filtered].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+      listEl.innerHTML = sorted.map(t => {
+        const tipe = t.metode_bayar === 'BAYAR_BON' ? 'BAYAR_BON' : (t.metode_bayar === 'PIUTANG' ? 'BON' : 'TUNAI');
+        const badgeClass = tipe === 'BAYAR_BON' ? 'bg-blue-100 text-blue-700' : tipe === 'BON' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+        const badgeLabel = tipe === 'BAYAR_BON' ? 'PELUNASAN' : tipe;
+        const itemsText = tipe === 'BAYAR_BON'
+          ? `Pelunasan bon${t.catatan ? ' — ' + t.catatan : ''}`
+          : ((t.items || []).map(it => `${it.nama_produk} x${it.qty}`).join(', ') || '-');
+        const tanggal = t.created_at ? new Date(t.created_at).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
         return `
         <div class="p-3">
           <div class="flex items-center justify-between">
             <div>
               <h5 class="font-bold text-slate-800">${t.no_struk||'-'}</h5>
-              <span class="text-xs text-slate-400">${t.customer_nama ? t.customer_nama : 'Umum'}</span>
+              <span class="text-xs text-slate-400">${t.customer_nama ? t.customer_nama : 'Umum'} · ${tanggal}</span>
             </div>
             <div class="text-right">
-              <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isBon ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${isBon ? 'BON' : 'TUNAI'}</span>
+              <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${badgeLabel}</span>
               <div class="font-black text-slate-900 mt-0.5">Rp ${Number(t.total_akhir||0).toLocaleString('id-ID')}</div>
             </div>
           </div>
