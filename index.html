@@ -14,10 +14,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kelontong">
   
-  <!-- CDN Tailwind CSS, Supabase & decoder barcode dari foto -->
+  <!-- CDN Tailwind CSS, Supabase, decoder barcode dari foto, generator barcode & PDF -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -37,11 +39,12 @@
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .modal-hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }
 
-    /* Struk Kasir Print */
+    /* Struk Kasir Print & Cetak Barcode */
     @media print {
       body * { visibility: hidden; }
-      #printable-receipt, #printable-receipt * { visibility: visible; }
+      #printable-receipt, #printable-receipt *, #printable-barcode, #printable-barcode * { visibility: visible; }
       #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; max-width: 58mm; margin: 0; padding: 4px; font-family: monospace; font-size: 11px; color: #000; }
+      #printable-barcode { position: absolute; left: 0; top: 0; width: 100%; text-align: center; padding: 10px; }
     }
   </style>
 </head>
@@ -69,14 +72,14 @@
 
     <!-- Top Mobile Bar -->
     <header class="bg-brand-600 text-white shadow-sm flex-shrink-0 z-20">
-      <div class="px-4 py-2.5 flex items-center justify-between">
+      <div class="px-4 py-3 flex items-center justify-between">
         <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white flex-shrink-0">
-            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white flex-shrink-0">
+            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           </div>
           <div>
-            <h1 class="font-extrabold text-sm leading-none tracking-tight">Kelontong Mart</h1>
-            <p class="text-[10px] text-brand-100 flex items-center gap-1.5 mt-0.5">
+            <h1 class="font-extrabold text-base leading-none tracking-tight">Kelontong Mart</h1>
+            <p class="text-xs text-brand-100 flex items-center gap-1.5 mt-1">
               <span id="connection-indicator" class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
               <span id="connection-status" class="font-medium">Mode Lokal / Belum Setup</span>
             </p>
@@ -85,17 +88,17 @@
         
         <div class="flex items-center gap-2">
           <!-- Tombol Scan: langsung buka kamera HP untuk ambil foto barcode -->
-          <button type="button" onclick="triggerBarcodePhoto()" class="px-2.5 py-1.5 bg-brand-700 active:bg-brand-800 rounded-xl transition flex items-center text-xs gap-1.5 shadow-sm">
-            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
-            <span class="text-[11px] font-bold pointer-events-none">Scan</span>
+          <button type="button" onclick="triggerBarcodePhoto()" class="px-3 py-2.5 bg-brand-700 active:bg-brand-800 rounded-xl transition flex items-center text-xs gap-1.5 shadow-sm">
+            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+            <span class="text-xs font-bold pointer-events-none">Scan</span>
           </button>
           <!-- Tombol Install App -->
-          <button type="button" onclick="handleInstallClick()" class="p-2 bg-brand-700 active:bg-brand-800 rounded-xl transition shadow-sm" title="Install Aplikasi">
-            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" /></svg>
+          <button type="button" onclick="handleInstallClick()" class="p-2.5 bg-brand-700 active:bg-brand-800 rounded-xl transition shadow-sm" title="Install Aplikasi">
+            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" /></svg>
           </button>
           <!-- Tombol Pengaturan -->
-          <button type="button" onclick="openConfigModal()" class="p-2 bg-brand-700 active:bg-brand-800 rounded-xl transition shadow-sm">
-            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <button type="button" onclick="openConfigModal()" class="p-2.5 bg-brand-700 active:bg-brand-800 rounded-xl transition shadow-sm">
+            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </button>
         </div>
       </div>
@@ -108,22 +111,22 @@
       <section id="tab-pos" class="tab-content space-y-3 block">
         <!-- Pencarian -->
         <div class="relative flex-1">
-          <svg class="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input type="text" id="pos-search-input" placeholder="Cari barang / ketik barcode..." onkeyup="filterPosProducts()" class="w-full pl-9 pr-8 py-2.5 text-xs rounded-2xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-          <button type="button" onclick="clearSearch()" class="absolute right-2.5 top-2.5 text-slate-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+          <svg class="w-5 h-5 absolute left-3 top-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <input type="text" id="pos-search-input" placeholder="Cari barang / ketik barcode..." onkeyup="filterPosProducts()" class="w-full pl-11 pr-9 py-3.5 text-base rounded-2xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <button type="button" onclick="clearSearch()" class="absolute right-3 top-3.5 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
         <!-- Filter Kategori -->
-        <div id="category-chips" class="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar -mx-3 px-3">
-          <button type="button" onclick="filterByCategory('Semua')" class="cat-chip active px-3.5 py-1.5 bg-brand-600 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">Semua</button>
-          <button type="button" onclick="filterByCategory('Sembako')" class="cat-chip px-3.5 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-medium border border-slate-200 whitespace-nowrap">Sembako</button>
-          <button type="button" onclick="filterByCategory('Makanan')" class="cat-chip px-3.5 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-medium border border-slate-200 whitespace-nowrap">Makanan</button>
-          <button type="button" onclick="filterByCategory('Minuman')" class="cat-chip px-3.5 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-medium border border-slate-200 whitespace-nowrap">Minuman</button>
-          <button type="button" onclick="filterByCategory('Rokok')" class="cat-chip px-3.5 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-medium border border-slate-200 whitespace-nowrap">Rokok</button>
+        <div id="category-chips" class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar -mx-3 px-3">
+          <button type="button" onclick="filterByCategory('Semua')" class="cat-chip active px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-bold whitespace-nowrap shadow-sm">Semua</button>
+          <button type="button" onclick="filterByCategory('Sembako')" class="cat-chip px-4 py-2.5 bg-white text-slate-600 rounded-xl text-sm font-medium border border-slate-200 whitespace-nowrap">Sembako</button>
+          <button type="button" onclick="filterByCategory('Makanan')" class="cat-chip px-4 py-2.5 bg-white text-slate-600 rounded-xl text-sm font-medium border border-slate-200 whitespace-nowrap">Makanan</button>
+          <button type="button" onclick="filterByCategory('Minuman')" class="cat-chip px-4 py-2.5 bg-white text-slate-600 rounded-xl text-sm font-medium border border-slate-200 whitespace-nowrap">Minuman</button>
+          <button type="button" onclick="filterByCategory('Rokok')" class="cat-chip px-4 py-2.5 bg-white text-slate-600 rounded-xl text-sm font-medium border border-slate-200 whitespace-nowrap">Rokok</button>
         </div>
 
         <!-- Grid Produk -->
-        <div id="pos-product-grid" class="grid grid-cols-2 gap-2.5"></div>
+        <div id="pos-product-grid" class="grid grid-cols-2 gap-3"></div>
       </section>
 
       <!-- TAB 2: STOK BARANG -->
@@ -150,14 +153,9 @@
             <span class="text-[10px] text-amber-800 font-bold uppercase tracking-wider block">Total Bon Toko</span>
             <h3 id="debt-summary-total" class="text-lg font-black text-amber-900 mt-0.5">Rp 0</h3>
           </div>
-          <div class="bg-rose-500/10 border border-rose-300/60 p-3 rounded-2xl flex items-center justify-between">
-            <div>
-              <span class="text-[10px] text-rose-800 font-bold uppercase tracking-wider block">Pelanggan Bon</span>
-              <h3 id="debt-summary-count" class="text-lg font-black text-rose-900 mt-0.5">0 Org</h3>
-            </div>
-            <button type="button" onclick="openCustomerModal()" class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-sm active:scale-90" title="Tambah Pelanggan">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-            </button>
+          <div class="bg-rose-500/10 border border-rose-300/60 p-3 rounded-2xl">
+            <span class="text-[10px] text-rose-800 font-bold uppercase tracking-wider block">Pelanggan Bon</span>
+            <h3 id="debt-summary-count" class="text-lg font-black text-rose-900 mt-0.5">0 Org</h3>
           </div>
         </div>
         <div class="relative">
@@ -169,65 +167,85 @@
 
       <!-- TAB 4: LAPORAN -->
       <section id="tab-history" class="tab-content space-y-3 hidden">
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] text-slate-400 font-medium">Omset Hari Ini</span><p id="rep-today-omset" class="text-base font-black text-slate-900 mt-0.5">Rp 0</p></div>
-          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] text-slate-400 font-medium">Transaksi Sukses</span><p id="rep-today-count" class="text-base font-black text-brand-600 mt-0.5">0</p></div>
-          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] text-slate-400 font-medium">Bon Baru Hari Ini</span><p id="rep-today-debt" class="text-base font-black text-amber-600 mt-0.5">Rp 0</p></div>
-          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-[10px] text-slate-400 font-medium">Pelunasan Masuk</span><p id="rep-today-paid" class="text-base font-black text-emerald-600 mt-0.5">Rp 0</p></div>
+        <!-- Pilihan Periode -->
+        <div class="flex gap-2">
+          <button type="button" onclick="setReportPeriod('harian')" id="period-harian" class="report-period-btn flex-1 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white">Harian</button>
+          <button type="button" onclick="setReportPeriod('bulanan')" id="period-bulanan" class="report-period-btn flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-slate-600 border border-slate-200">Bulanan</button>
+          <button type="button" onclick="setReportPeriod('custom')" id="period-custom" class="report-period-btn flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-slate-600 border border-slate-200">Pilih Tanggal</button>
         </div>
+        <div id="custom-date-range" class="hidden grid grid-cols-2 gap-2">
+          <input type="date" id="rep-date-from" onchange="loadHistoryTransactions()" class="w-full p-2.5 text-sm border rounded-xl">
+          <input type="date" id="rep-date-to" onchange="loadHistoryTransactions()" class="w-full p-2.5 text-sm border rounded-xl">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-xs text-slate-400 font-medium">Omset</span><p id="rep-today-omset" class="text-lg font-black text-slate-900 mt-0.5">Rp 0</p></div>
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-xs text-slate-400 font-medium">Transaksi Sukses</span><p id="rep-today-count" class="text-lg font-black text-brand-600 mt-0.5">0</p></div>
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-xs text-slate-400 font-medium">Bon Baru</span><p id="rep-today-debt" class="text-lg font-black text-amber-600 mt-0.5">Rp 0</p></div>
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm"><span class="text-xs text-slate-400 font-medium">Pelunasan Masuk</span><p id="rep-today-paid" class="text-lg font-black text-emerald-600 mt-0.5">Rp 0</p></div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-3 border-b border-slate-100"><h3 class="font-bold text-sm text-slate-800">🏆 Produk Paling Laku</h3></div>
+          <div id="top-products-list" class="divide-y divide-slate-100 text-sm"></div>
+        </div>
+
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="p-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 class="font-bold text-xs text-slate-800">Riwayat Struk Terakhir</h3>
-            <button type="button" onclick="loadHistoryTransactions()" class="text-[11px] text-brand-600 font-bold flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Refresh
+            <h3 class="font-bold text-sm text-slate-800">Riwayat Struk</h3>
+            <button type="button" onclick="loadHistoryTransactions()" class="text-xs text-brand-600 font-bold flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Refresh
             </button>
           </div>
-          <div id="transaction-history-list" class="divide-y divide-slate-100 text-xs"></div>
+          <div id="transaction-history-list" class="divide-y divide-slate-100 text-sm"></div>
         </div>
-        <button type="button" onclick="sendDailyRecapToEmail()" id="btn-send-recap" class="w-full py-3 bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-sm active:scale-95 transition">
-          📧 Kirim Rekap Hari Ini ke Email
-        </button>
+
+        <div class="grid grid-cols-1 gap-2">
+          <button type="button" onclick="downloadFullRecapPDF()" class="w-full py-3.5 bg-slate-700 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition">📄 Unduh PDF Rekap Lengkap</button>
+          <button type="button" onclick="sendFullRecapToEmail()" id="btn-send-recap" class="w-full py-3.5 bg-slate-800 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition">📧 Kirim Rekap Lengkap ke Email Admin</button>
+          <button type="button" onclick="shareFullRecapPDF()" class="w-full py-3.5 bg-green-600 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition">📲 Bagikan Rekap PDF (WA/lainnya)</button>
+        </div>
       </section>
     </main>
 
     <!-- Floating Cart Bar -->
-    <div id="floating-cart-bar" class="hidden absolute left-3 right-3 bottom-[64px] z-30 transition-transform duration-300">
-      <button type="button" onclick="toggleCartDrawer(true)" class="w-full bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between active:scale-[0.98]">
-        <div class="flex items-center gap-2.5">
-          <div class="relative bg-brand-600 p-1.5 rounded-xl text-white">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-            <span id="cart-badge-count" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-extrabold text-[9px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
+    <div id="floating-cart-bar" class="hidden absolute left-3 right-3 bottom-[72px] z-30 transition-transform duration-300">
+      <button type="button" onclick="toggleCartDrawer(true)" class="w-full bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-xl flex items-center justify-between active:scale-[0.98]">
+        <div class="flex items-center gap-3">
+          <div class="relative bg-brand-600 p-2 rounded-xl text-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+            <span id="cart-badge-count" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center">0</span>
           </div>
           <div class="text-left leading-tight">
-            <span class="text-[10px] text-slate-400">Total Belanja</span>
-            <div id="cart-floating-total" class="font-black text-sm text-emerald-400">Rp 0</div>
+            <span class="text-xs text-slate-400">Total Belanja</span>
+            <div id="cart-floating-total" class="font-black text-base text-emerald-400">Rp 0</div>
           </div>
         </div>
-        <div class="flex items-center gap-1 font-bold text-xs bg-white/10 px-3 py-1.5 rounded-xl">
+        <div class="flex items-center gap-1.5 font-bold text-sm bg-white/10 px-4 py-2 rounded-xl">
           <span>Checkout</span>
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
         </div>
       </button>
     </div>
 
     <!-- Bottom Nav Bar -->
-    <nav class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 flex justify-around items-center h-14 shadow-lg select-none" style="padding-bottom: env(safe-area-inset-bottom, 0px); height: calc(3.5rem + env(safe-area-inset-bottom, 0px));">
+    <nav class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 flex justify-around items-center h-16 shadow-lg select-none" style="padding-bottom: env(safe-area-inset-bottom, 0px); height: calc(4rem + env(safe-area-inset-bottom, 0px));">
       <button type="button" onclick="switchTab('pos')" id="nav-pos" class="nav-item flex-1 flex flex-col items-center justify-center py-1 text-brand-600 font-bold active:scale-95 transition">
-        <svg class="w-5 h-5 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-        <span class="text-[10px] pointer-events-none">Kasir</span>
+        <svg class="w-6 h-6 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+        <span class="text-xs pointer-events-none">Kasir</span>
       </button>
       <button type="button" onclick="switchTab('stock')" id="nav-stock" class="nav-item flex-1 flex flex-col items-center justify-center py-1 text-slate-400 font-medium active:scale-95 transition">
-        <svg class="w-5 h-5 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-        <span class="text-[10px] pointer-events-none">Stok</span>
+        <svg class="w-6 h-6 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+        <span class="text-xs pointer-events-none">Stok</span>
       </button>
       <button type="button" onclick="switchTab('debt')" id="nav-debt" class="nav-item flex-1 flex flex-col items-center justify-center py-1 text-slate-400 font-medium relative active:scale-95 transition">
-        <svg class="w-5 h-5 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-        <span class="text-[10px] pointer-events-none">Buku Bon</span>
-        <span id="badge-debt" class="hidden absolute top-1 right-5 px-1 bg-amber-500 text-white font-black rounded-full text-[8px] min-w-[14px] text-center">!</span>
+        <svg class="w-6 h-6 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+        <span class="text-xs pointer-events-none">Buku Bon</span>
+        <span id="badge-debt" class="hidden absolute top-0 right-4 px-1.5 py-0.5 bg-amber-500 text-white font-black rounded-full text-[9px] min-w-[16px] text-center">!</span>
       </button>
       <button type="button" onclick="switchTab('history')" id="nav-history" class="nav-item flex-1 flex flex-col items-center justify-center py-1 text-slate-400 font-medium active:scale-95 transition">
-        <svg class="w-5 h-5 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-        <span class="text-[10px] pointer-events-none">Laporan</span>
+        <svg class="w-6 h-6 mb-0.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        <span class="text-xs pointer-events-none">Laporan</span>
       </button>
     </nav>
 
@@ -244,19 +262,19 @@
             </button>
           </div>
         </div>
-        <div id="cart-items-container" class="flex-1 overflow-y-auto p-3 space-y-2 max-h-[45vh] hide-scrollbar"></div>
+        <div id="cart-items-container" class="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[45vh] hide-scrollbar"></div>
         <div class="p-4 bg-slate-50 border-t border-slate-100 space-y-3" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));">
-          <div class="space-y-1.5 text-xs">
+          <div class="space-y-2 text-sm">
             <div class="flex justify-between text-slate-500"><span>Subtotal</span><span id="cart-subtotal" class="font-bold text-slate-700">Rp 0</span></div>
             <div class="flex justify-between items-center text-slate-500">
               <span>Potongan Diskon (Rp)</span>
-              <input type="number" id="cart-discount" value="0" oninput="calculateCartTotals()" class="w-24 text-right px-2 py-1 rounded-xl border border-slate-200 text-xs font-bold">
+              <input type="number" id="cart-discount" value="0" oninput="calculateCartTotals()" class="w-28 text-right px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold">
             </div>
-            <div class="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200"><span>Total Akhir</span><span id="cart-grandtotal" class="text-brand-600">Rp 0</span></div>
+            <div class="flex justify-between text-lg font-black text-slate-900 pt-1 border-t border-slate-200"><span>Total Akhir</span><span id="cart-grandtotal" class="text-brand-600">Rp 0</span></div>
           </div>
-          <div class="grid grid-cols-2 gap-2 pt-1">
-            <button type="button" onclick="openPaymentModal('TUNAI')" class="py-3 px-3 bg-brand-600 text-white rounded-2xl font-bold text-xs flex justify-center gap-1.5 shadow-md"><span>Bayar Tunai</span></button>
-            <button type="button" onclick="openPaymentModal('PIUTANG')" class="py-3 px-3 bg-amber-500 text-white rounded-2xl font-bold text-xs flex justify-center gap-1.5 shadow-md"><span>Catat Bon</span></button>
+          <div class="grid grid-cols-2 gap-2.5 pt-1">
+            <button type="button" onclick="openPaymentModal('TUNAI')" class="py-4 px-3 bg-brand-600 text-white rounded-2xl font-bold text-sm flex justify-center gap-1.5 shadow-md"><span>Bayar Tunai</span></button>
+            <button type="button" onclick="openPaymentModal('PIUTANG')" class="py-4 px-3 bg-amber-500 text-white rounded-2xl font-bold text-sm flex justify-center gap-1.5 shadow-md"><span>Catat Bon</span></button>
           </div>
         </div>
       </div>
@@ -273,24 +291,33 @@
         <div class="bg-slate-50 p-3 rounded-2xl text-center"><span class="text-[11px] text-slate-400 font-medium">Tagihan</span><div id="modal-pay-total" class="text-2xl font-black text-brand-600">Rp 0</div></div>
         
         <div id="cash-payment-fields" class="space-y-2.5">
-          <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Uang Diterima (Rp)</label><input type="number" id="pay-cash-tendered" oninput="calculateChange()" class="w-full text-xl font-black p-2.5 rounded-2xl border text-center"></div>
+          <div><label class="block text-sm font-bold text-slate-600 mb-1">Uang Diterima (Rp)</label><input type="number" id="pay-cash-tendered" oninput="calculateChange()" class="w-full text-2xl font-black p-3 rounded-2xl border text-center"></div>
           <div class="flex gap-1.5 overflow-x-auto py-0.5 hide-scrollbar">
-            <button type="button" onclick="quickCash(10000)" class="px-3 py-1.5 text-xs bg-slate-100 rounded-xl font-bold">10rb</button>
-            <button type="button" onclick="quickCash(20000)" class="px-3 py-1.5 text-xs bg-slate-100 rounded-xl font-bold">20rb</button>
-            <button type="button" onclick="quickCash(50000)" class="px-3 py-1.5 text-xs bg-slate-100 rounded-xl font-bold">50rb</button>
-            <button type="button" onclick="quickCash(100000)" class="px-3 py-1.5 text-xs bg-slate-100 rounded-xl font-bold">100rb</button>
-            <button type="button" onclick="quickCashExact()" class="px-3 py-1.5 text-xs bg-brand-100 text-brand-700 rounded-xl font-bold">Uang Pas</button>
+            <button type="button" onclick="quickCash(10000)" class="px-4 py-2 text-sm bg-slate-100 rounded-xl font-bold">10rb</button>
+            <button type="button" onclick="quickCash(20000)" class="px-4 py-2 text-sm bg-slate-100 rounded-xl font-bold">20rb</button>
+            <button type="button" onclick="quickCash(50000)" class="px-4 py-2 text-sm bg-slate-100 rounded-xl font-bold">50rb</button>
+            <button type="button" onclick="quickCash(100000)" class="px-4 py-2 text-sm bg-slate-100 rounded-xl font-bold">100rb</button>
+            <button type="button" onclick="quickCashExact()" class="px-4 py-2 text-sm bg-brand-100 text-brand-700 rounded-xl font-bold">Uang Pas</button>
           </div>
-          <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-2xl text-xs font-bold"><span>Kembalian:</span><span id="pay-change-amount" class="text-base font-black text-emerald-700">Rp 0</span></div>
+          <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-2xl text-sm font-bold"><span>Kembalian:</span><span id="pay-change-amount" class="text-lg font-black text-emerald-700">Rp 0</span></div>
+          <details class="text-xs">
+            <summary class="font-bold text-slate-500 cursor-pointer">+ Catat data pembeli (opsional)</summary>
+            <div class="space-y-2 pt-2">
+              <input type="text" id="pay-cash-cust-name" list="customer-namelist" placeholder="Nama Pembeli" class="w-full p-2.5 text-sm border rounded-xl">
+              <input type="tel" id="pay-cash-cust-phone" placeholder="No. WA (0812xxx)" class="w-full p-2.5 text-sm border rounded-xl">
+            </div>
+          </details>
         </div>
 
         <div id="debt-payment-fields" class="hidden space-y-2.5">
-          <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Pilih Pelanggan *</label><select id="pay-customer-select" class="w-full p-2.5 text-xs rounded-2xl border font-medium"><option value="">-- Pilih Pelanggan --</option></select></div>
-          <div><label class="block text-[11px] font-bold text-slate-600 mb-1">DP / Titipan Bayar</label><input type="number" id="pay-debt-dp" value="0" class="w-full p-2.5 rounded-2xl border text-xs font-bold"></div>
-          <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Jatuh Tempo</label><input type="date" id="pay-due-date" class="w-full p-2.5 rounded-2xl border text-xs"></div>
+          <div><label class="block text-sm font-bold text-slate-600 mb-1">Nama Pelanggan *</label><input type="text" id="pay-debt-cust-name" list="customer-namelist" placeholder="Ketik nama (baru atau lama)" class="w-full p-3 text-base rounded-2xl border font-medium"></div>
+          <div><label class="block text-sm font-bold text-slate-600 mb-1">No. WA Pelanggan *</label><input type="tel" id="pay-debt-cust-phone" placeholder="0812xxxxxxx" class="w-full p-3 text-base rounded-2xl border font-medium"></div>
+          <div><label class="block text-sm font-bold text-slate-600 mb-1">DP / Titipan Bayar</label><input type="number" id="pay-debt-dp" value="0" class="w-full p-2.5 rounded-2xl border text-sm font-bold"></div>
+          <div><label class="block text-sm font-bold text-slate-600 mb-1">Jatuh Tempo</label><input type="date" id="pay-due-date" class="w-full p-2.5 rounded-2xl border text-sm"></div>
         </div>
+        <datalist id="customer-namelist"></datalist>
 
-        <button type="button" onclick="submitTransaction()" class="w-full py-3.5 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-md">Selesaikan Transaksi</button>
+        <button type="button" onclick="submitTransaction()" class="w-full py-4 bg-brand-600 text-white rounded-2xl font-black text-base shadow-md">Selesaikan Transaksi</button>
       </div>
     </div>
 
@@ -302,33 +329,32 @@
       <div class="bg-white rounded-t-3xl w-full p-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between border-b pb-2 mb-2"><h3 class="font-bold text-sm">Tambah Barang</h3><button onclick="closeProductModal()" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
         <div class="space-y-2">
-          <input type="text" id="prod-barcode" placeholder="Barcode (Opsional)" class="w-full p-2 text-xs border rounded-xl">
-          <input type="text" id="prod-name" placeholder="Nama Barang *" class="w-full p-2 text-xs border rounded-xl">
+          <div class="flex gap-2">
+            <input type="text" id="prod-barcode" placeholder="Barcode (Opsional)" class="w-full p-3 text-base border rounded-xl">
+            <button type="button" onclick="generateProductBarcode()" class="px-3 bg-slate-800 text-white rounded-xl text-xs font-bold whitespace-nowrap">🔢 Buat</button>
+          </div>
+          <div id="barcode-preview-wrap" class="hidden bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-2">
+            <svg id="barcode-preview"></svg>
+            <div class="grid grid-cols-2 gap-2 w-full">
+              <button type="button" onclick="printProductBarcode()" class="py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">🖨️ Cetak</button>
+              <button type="button" onclick="downloadProductBarcode()" class="py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">⬇️ Unduh PNG</button>
+            </div>
+          </div>
+          <input type="text" id="prod-name" placeholder="Nama Barang *" class="w-full p-3 text-base border rounded-xl">
           <div class="grid grid-cols-2 gap-2">
-            <input type="text" id="prod-cat" placeholder="Kategori (Sembako)" class="w-full p-2 text-xs border rounded-xl">
-            <input type="text" id="prod-unit" placeholder="Satuan (pcs)" class="w-full p-2 text-xs border rounded-xl">
+            <input type="text" id="prod-cat" placeholder="Kategori (Sembako)" class="w-full p-3 text-base border rounded-xl">
+            <input type="text" id="prod-unit" placeholder="Satuan (pcs)" class="w-full p-3 text-base border rounded-xl">
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <input type="number" id="prod-buy" placeholder="Harga Beli" class="w-full p-2 text-xs border rounded-xl">
-            <input type="number" id="prod-sell" placeholder="Harga Jual *" class="w-full p-2 text-xs border rounded-xl font-bold">
+            <input type="number" id="prod-buy" placeholder="Harga Beli" class="w-full p-3 text-base border rounded-xl">
+            <input type="number" id="prod-sell" placeholder="Harga Jual *" class="w-full p-3 text-base border rounded-xl font-bold">
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <input type="number" id="prod-stock" placeholder="Stok Awal" class="w-full p-2 text-xs border rounded-xl">
-            <input type="number" id="prod-min" placeholder="Stok Minimum (5)" class="w-full p-2 text-xs border rounded-xl">
+            <input type="number" id="prod-stock" placeholder="Stok Awal" class="w-full p-3 text-base border rounded-xl">
+            <input type="number" id="prod-min" placeholder="Stok Minimum (5)" class="w-full p-3 text-base border rounded-xl">
           </div>
-          <button type="button" onclick="saveProduct()" class="w-full py-3 bg-brand-600 text-white rounded-xl text-xs font-black shadow-md mt-2">Simpan Barang</button>
+          <button type="button" onclick="saveProduct()" class="w-full py-4 bg-brand-600 text-white rounded-xl text-base font-black shadow-md mt-2">Simpan Barang</button>
         </div>
-      </div>
-    </div>
-
-    <!-- Modal Pelanggan Baru -->
-    <div id="customer-modal" class="modal-hidden absolute inset-0 bg-black/60 z-50 flex items-end justify-center">
-      <div class="bg-white rounded-t-3xl w-full p-4 shadow-2xl space-y-2">
-        <div class="flex justify-between border-b pb-2 mb-1"><h3 class="font-bold text-sm">Pelanggan Baru</h3><button onclick="closeCustomerModal()" class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
-        <input type="text" id="cust-name" placeholder="Nama Lengkap *" class="w-full p-2 text-xs border rounded-xl">
-        <input type="tel" id="cust-phone" placeholder="No. WA (0812xxx)" class="w-full p-2 text-xs border rounded-xl">
-        <input type="text" id="cust-address" placeholder="Alamat Singkat" class="w-full p-2 text-xs border rounded-xl">
-        <button type="button" onclick="saveCustomer()" class="w-full py-3 bg-brand-600 text-white rounded-xl text-xs font-black shadow-md mt-2">Simpan Pelanggan</button>
       </div>
     </div>
 
@@ -371,6 +397,8 @@
   <div id="printable-receipt" class="hidden">
     <!-- Isi struk dirender via JavaScript -->
   </div>
+  <!-- Template Cetak Barcode -->
+  <div id="printable-barcode" class="hidden"></div>
 
   <!-- SCRIPT UTAMA KASIR -->
   <script>
@@ -552,42 +580,88 @@
       bootApp();
     };
 
-    // Kirim rekap harian ke Code.gs (Apps Script) lewat fetch — tanpa perlu halaman
-    // dimuat di dalam iframe Apps Script sama sekali. Body dikirim sebagai string
-    // biasa (bukan dengan header Content-Type: application/json) supaya browser
-    // menganggapnya "simple request" dan tidak memicu preflight OPTIONS, yang
-    // memang tidak didukung oleh Web App Apps Script secara default.
-    window.sendDailyRecapToEmail = async function() {
-      if (!GAS_ENDPOINT) {
-        showToast('GAS_ENDPOINT belum diisi di kode', 'error');
-        return;
-      }
+    // ================= REKAP LENGKAP (PDF) =================
+    // Mengumpulkan semua data yang diminta: stok, penjualan, bon, barang paling laku,
+    // omzet, dan rincian belanja per nama pelanggan — lalu menyusunnya jadi satu dokumen jsPDF.
+    window.buildFullRecapPDFDoc = function() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const { from, to } = getReportDateRange();
+      const filtered = transactions.filter(t => { const d = new Date(t.created_at || Date.now()); return d >= from && d <= to; });
+      let y = 16;
+      const line = (txt, size=11, bold=false) => { doc.setFontSize(size); doc.setFont(undefined, bold?'bold':'normal'); doc.text(txt, 14, y); y += size < 12 ? 6 : 8; };
+      const periodLabel = reportPeriod === 'harian' ? 'Harian' : reportPeriod === 'bulanan' ? 'Bulanan' : 'Custom';
+
+      line('Kelontong Mart - Rekap Lengkap', 16, true);
+      line(`Periode: ${periodLabel} (${from.toLocaleDateString('id-ID')} - ${to.toLocaleDateString('id-ID')})`, 10);
+      y += 2;
+
+      line('Ringkasan Omzet', 13, true);
+      const omset = filtered.reduce((a,b)=>a+Number(b.total_akhir||0),0);
+      const piutangBaru = filtered.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0);
+      line(`Total Omzet: Rp ${omset.toLocaleString('id-ID')}`);
+      line(`Jumlah Transaksi: ${filtered.length}`);
+      line(`Bon Baru: Rp ${piutangBaru.toLocaleString('id-ID')}`);
+      y += 2;
+
+      line('Barang Paling Laku', 13, true);
+      const qtyMap = {};
+      filtered.forEach(t => (t.items||[]).forEach(it => { qtyMap[it.nama_produk] = (qtyMap[it.nama_produk]||0) + Number(it.qty||0); }));
+      const top = Object.entries(qtyMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      if (top.length === 0) line('Belum ada data penjualan pada periode ini.');
+      top.forEach(([nama, qty], i) => line(`${i+1}. ${nama} — ${qty} terjual`));
+      y += 2;
+
+      if (y > 250) { doc.addPage(); y = 16; }
+      line('Stok Barang', 13, true);
+      products.forEach(p => { if (y > 275) { doc.addPage(); y = 16; } line(`${p.nama} — stok: ${p.stok}${p.stok <= p.stok_minimum ? ' (MENIPIS)' : ''}`); });
+      y += 2;
+
+      if (y > 250) { doc.addPage(); y = 16; }
+      line('Daftar Bon Pelanggan', 13, true);
+      const withDebt = customers.filter(c => Number(c.total_piutang) > 0);
+      if (withDebt.length === 0) line('Tidak ada bon aktif.');
+      withDebt.forEach(c => { if (y > 275) { doc.addPage(); y = 16; } line(`${c.nama} (${c.no_hp||'-'}) — Rp ${Number(c.total_piutang).toLocaleString('id-ID')}`); });
+      y += 2;
+
+      if (y > 250) { doc.addPage(); y = 16; }
+      line('Belanja per Pelanggan (pada periode ini)', 13, true);
+      const belanjaMap = {};
+      filtered.forEach(t => { if (t.customer_nama) belanjaMap[t.customer_nama] = (belanjaMap[t.customer_nama]||0) + Number(t.total_akhir||0); });
+      const belanjaList = Object.entries(belanjaMap).sort((a,b)=>b[1]-a[1]);
+      if (belanjaList.length === 0) line('Belum ada data belanja atas nama pelanggan pada periode ini.');
+      belanjaList.forEach(([nama, total]) => { if (y > 275) { doc.addPage(); y = 16; } line(`${nama} — Rp ${total.toLocaleString('id-ID')}`); });
+
+      return doc;
+    };
+
+    window.downloadFullRecapPDF = function() {
+      if (typeof window.jspdf === 'undefined') { showToast('Library PDF gagal dimuat', 'error'); return; }
+      const doc = buildFullRecapPDFDoc();
+      doc.save(`Rekap-Kelontong-${new Date().toISOString().slice(0,10)}.pdf`);
+    };
+
+    // Kirim PDF rekap lengkap ke email admin lewat Code.gs (Apps Script) — dikirim sebagai
+    // base64 di body, tanpa header Content-Type: application/json, supaya tidak memicu
+    // preflight OPTIONS yang tidak ditangani Web App Apps Script secara default.
+    window.sendFullRecapToEmail = async function() {
+      if (!GAS_ENDPOINT) { showToast('GAS_ENDPOINT belum diisi di kode', 'error'); return; }
       const email = safeStorage.getItem('kelontong_owner_email');
-      if (!email) {
-        showToast('Isi dulu email pemilik toko di Pengaturan', 'error');
-        openConfigModal();
-        return;
-      }
+      if (!email) { showToast('Isi dulu email pemilik toko di Pengaturan', 'error'); openConfigModal(); return; }
+      if (typeof window.jspdf === 'undefined') { showToast('Library PDF gagal dimuat', 'error'); return; }
+
       const btn = document.getElementById('btn-send-recap');
       const originalText = btn.innerText;
       btn.innerText = 'Mengirim...'; btn.disabled = true;
-
-      const today = new Date().toDateString();
-      const todayTx = transactions.filter(t => new Date(t.created_at || Date.now()).toDateString() === today);
-      const summaryData = {
-        omset: todayTx.reduce((a,b)=>a+Number(b.total_akhir||0),0),
-        totalTx: todayTx.length,
-        piutangBaru: todayTx.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0),
-        piutangLunas: 0
-      };
-
       try {
+        const doc = buildFullRecapPDFDoc();
+        const base64 = doc.output('datauristring').split(',')[1];
         const res = await fetch(GAS_ENDPOINT, {
           method: 'POST',
-          body: JSON.stringify({ action: 'send_daily_summary', email, summary: summaryData })
+          body: JSON.stringify({ action: 'send_full_recap_pdf', email, pdfBase64: base64, fileName: `Rekap-Kelontong-${new Date().toISOString().slice(0,10)}.pdf` })
         });
         const data = await res.json();
-        if (data.status === 'success') showToast('Rekap terkirim ke ' + email);
+        if (data.status === 'success') showToast('Rekap PDF terkirim ke ' + email);
         else showToast('Gagal kirim: ' + (data.message || 'error tidak diketahui'), 'error');
       } catch (e) {
         showToast('Gagal menghubungi server. Cek GAS_ENDPOINT & koneksi internet.', 'error');
@@ -596,8 +670,83 @@
       }
     };
 
-    window.openProductModal = () => openModal('product-modal');
+    // Bagikan PDF rekap lewat share sheet HP (bisa pilih WhatsApp secara manual di sana).
+    // CATATAN: browser tidak diizinkan mengirim file ke kontak WA tertentu secara otomatis/diam-diam —
+    // ini murni batasan keamanan platform, bukan keterbatasan kode. navigator.share membuka
+    // pilihan aplikasi (termasuk WhatsApp) dan pengguna tetap menekan "Kirim" di sana.
+    window.shareFullRecapPDF = async function() {
+      if (typeof window.jspdf === 'undefined') { showToast('Library PDF gagal dimuat', 'error'); return; }
+      const doc = buildFullRecapPDFDoc();
+      const fileName = `Rekap-Kelontong-${new Date().toISOString().slice(0,10)}.pdf`;
+      const blob = doc.output('blob');
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Rekap Kelontong Mart', text: 'Rekap penjualan & stok Kelontong Mart' }); return; }
+        catch (e) { /* pengguna batal, lanjut unduh biasa */ }
+      }
+      doc.save(fileName);
+      showToast('Perangkat tidak mendukung share langsung, PDF diunduh — kirim manual lewat WA');
+    };
+    // ================= END REKAP LENGKAP =================
+
+    window.openProductModal = () => {
+      ['prod-barcode','prod-name','prod-cat','prod-unit','prod-buy','prod-sell','prod-stock','prod-min'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('barcode-preview-wrap').classList.add('hidden');
+      openModal('product-modal');
+    };
     window.closeProductModal = () => closeModal('product-modal');
+
+    // ================= GENERATOR BARCODE PRODUK =================
+    window.renderBarcodePreview = function() {
+      const val = document.getElementById('prod-barcode').value.trim();
+      const wrap = document.getElementById('barcode-preview-wrap');
+      if (!val || typeof JsBarcode === 'undefined') { wrap.classList.add('hidden'); return; }
+      try {
+        JsBarcode("#barcode-preview", val, { format: "CODE128", width: 2, height: 60, displayValue: true, fontSize: 14, margin: 6 });
+        wrap.classList.remove('hidden');
+      } catch (e) { wrap.classList.add('hidden'); }
+    };
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('prod-barcode');
+      if (el) el.addEventListener('input', renderBarcodePreview);
+    });
+
+    // Buat kode barcode unik otomatis kalau kolom barcode masih kosong (format lokal: 200 + timestamp)
+    window.generateProductBarcode = function() {
+      let el = document.getElementById('prod-barcode');
+      if (!el.value.trim()) el.value = '200' + Date.now().toString().slice(-10);
+      renderBarcodePreview();
+    };
+
+    window.printProductBarcode = function() {
+      const svg = document.getElementById('barcode-preview');
+      if (!svg || svg.innerHTML.trim() === '') { showToast('Buat barcode dulu', 'error'); return; }
+      const printArea = document.getElementById('printable-barcode');
+      printArea.innerHTML = svg.outerHTML;
+      window.print();
+    };
+
+    window.downloadProductBarcode = function() {
+      const svg = document.getElementById('barcode-preview');
+      if (!svg || svg.innerHTML.trim() === '') { showToast('Buat barcode dulu', 'error'); return; }
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const img = new Image();
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        const a = document.createElement('a');
+        a.download = 'barcode-' + (document.getElementById('prod-barcode').value.trim() || 'produk') + '.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      };
+      img.src = url;
+    };
+    // ================= END GENERATOR BARCODE =================
+
     window.saveProduct = async function() {
       const nama = document.getElementById('prod-name').value.trim();
       const harga_jual = Number(document.getElementById('prod-sell').value) || 0;
@@ -624,30 +773,9 @@
         renderPosProducts(); renderStockList();
       }
       ['prod-barcode','prod-name','prod-cat','prod-unit','prod-buy','prod-sell','prod-stock','prod-min'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('barcode-preview-wrap').classList.add('hidden');
       closeProductModal();
       showToast('Barang tersimpan');
-    };
-
-    window.openCustomerModal = () => openModal('customer-modal');
-    window.closeCustomerModal = () => closeModal('customer-modal');
-    window.saveCustomer = async function() {
-      const nama = document.getElementById('cust-name').value.trim();
-      if (!nama) { showToast('Nama wajib diisi', 'error'); return; }
-      const newCust = { id: 'local-' + Date.now(), nama, no_hp: document.getElementById('cust-phone').value.trim(), alamat: document.getElementById('cust-address').value.trim(), total_piutang: 0 };
-      if (db) {
-        try {
-          const { id, ...payload } = newCust;
-          const { error } = await db.from('customers').insert(payload);
-          if (error) throw error;
-          await fetchSupabase();
-        } catch (e) { showToast('Gagal simpan ke Supabase', 'error'); return; }
-      } else {
-        customers.push(newCust);
-        renderCustomerDebt(); populateCustomerSelect();
-      }
-      ['cust-name','cust-phone','cust-address'].forEach(id => document.getElementById(id).value = '');
-      closeCustomerModal();
-      showToast('Pelanggan tersimpan');
     };
 
     window.closePaymentModal = () => closeModal('payment-modal');
@@ -660,6 +788,56 @@
       document.getElementById('debt-pay-amount').value = c.total_piutang;
       openModal('debt-pay-modal');
     };
+    // Ubah nomor lokal (08xx) jadi format internasional wa.me (62xx)
+    window.normalizePhoneWA = function(phone) {
+      let p = String(phone || '').replace(/[^0-9]/g, '');
+      if (p.startsWith('0')) p = '62' + p.slice(1);
+      if (p.startsWith('62')) return p;
+      return p;
+    };
+
+    // Buka WhatsApp dengan pesan pengingat bon sudah terisi otomatis.
+    // CATATAN: karena kebijakan keamanan WhatsApp, pengiriman tidak bisa 100% otomatis
+    // tanpa tap "Kirim" — ini membuka chat dengan pesan siap kirim, tinggal 1 ketukan.
+    window.remindCustomerDebtWA = function(id) {
+      const c = customers.find(x => x.id === id); if (!c) return;
+      if (!c.no_hp) { showToast('No. WA pelanggan ini belum tercatat', 'error'); return; }
+      const toko = 'Kelontong Mart';
+      const pesan = `Halo ${c.nama}, ini pengingat dari ${toko}.\nSisa bon Anda saat ini: Rp ${Number(c.total_piutang).toLocaleString('id-ID')}.\nMohon segera dilunasi ya, terima kasih 🙏`;
+      window.open(`https://wa.me/${normalizePhoneWA(c.no_hp)}?text=${encodeURIComponent(pesan)}`, '_blank');
+    };
+
+    // Buat PDF tagihan satu pelanggan lalu unduh; kalau perangkat mendukung Web Share API
+    // dengan file, tawarkan juga "Bagikan" supaya bisa dipilih langsung ke WhatsApp.
+    window.generateDebtInvoicePDF = async function(id) {
+      const c = customers.find(x => x.id === id); if (!c) return;
+      if (typeof window.jspdf === 'undefined') { showToast('Library PDF gagal dimuat', 'error'); return; }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16); doc.text('Kelontong Mart - Tagihan', 14, 18);
+      doc.setFontSize(11);
+      doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 14, 28);
+      doc.text(`Nama Pelanggan: ${c.nama}`, 14, 36);
+      doc.text(`No. WA: ${c.no_hp || '-'}`, 14, 44);
+      doc.setFontSize(14);
+      doc.text(`Total Tagihan: Rp ${Number(c.total_piutang).toLocaleString('id-ID')}`, 14, 58);
+      doc.setFontSize(10);
+      doc.text('Mohon segera dilunasi. Terima kasih atas kepercayaannya.', 14, 70);
+
+      const fileName = `Tagihan-${c.nama.replace(/\s+/g,'_')}.pdf`;
+      const blob = doc.output('blob');
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Tagihan ' + c.nama, text: 'Tagihan dari Kelontong Mart untuk ' + c.nama });
+          return;
+        } catch (e) { /* pengguna batal share, lanjut unduh biasa di bawah */ }
+      }
+      doc.save(fileName);
+      showToast('PDF tagihan terunduh, kirim manual lewat WA/Email');
+    };
+
     window.submitDebtPayment = async function() {
       const id = document.getElementById('debt-cust-id').value;
       const bayar = Number(document.getElementById('debt-pay-amount').value) || 0;
@@ -740,12 +918,12 @@
       grid.innerHTML = filtered.map(p => {
         const isLow = p.stok <= p.stok_minimum;
         return `
-          <div onclick="addToCart('${p.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between active:scale-95 transition cursor-pointer select-none">
+          <div onclick="addToCart('${p.id}')" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between active:scale-95 transition cursor-pointer select-none min-h-[130px]">
             <div>
-              <div class="flex justify-between items-start gap-1"><span class="text-[9px] px-1 bg-slate-100 text-slate-500 rounded">${p.kategori||'Umum'}</span><span class="text-[9px] font-bold ${isLow?'text-rose-500':'text-slate-400'}">Stok: ${p.stok}</span></div>
-              <h4 class="font-bold text-xs mt-1.5 leading-snug text-slate-800 line-clamp-2">${p.nama}</h4>
+              <div class="flex justify-between items-start gap-1"><span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg font-semibold">${p.kategori||'Umum'}</span><span class="text-xs font-bold ${isLow?'text-rose-500':'text-slate-400'}">Stok: ${p.stok}</span></div>
+              <h4 class="font-bold text-base mt-2 leading-snug text-slate-800 line-clamp-2">${p.nama}</h4>
             </div>
-            <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center"><span class="font-black text-xs text-brand-600">Rp ${p.harga_jual.toLocaleString('id-ID')}</span><div class="w-5 h-5 rounded bg-brand-50 text-brand-600 flex justify-center items-center font-bold text-xs">+</div></div>
+            <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center"><span class="font-black text-base text-brand-600">Rp ${p.harga_jual.toLocaleString('id-ID')}</span><div class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex justify-center items-center font-black text-xl">+</div></div>
           </div>`;
       }).join('');
     };
@@ -755,8 +933,8 @@
     window.filterByCategory = (cat) => {
       activeCategory = cat;
       document.querySelectorAll('.cat-chip').forEach(el => {
-        if(el.innerText.trim()===cat) el.className = 'cat-chip active px-3.5 py-1.5 bg-brand-600 text-white rounded-xl text-xs font-bold';
-        else el.className = 'cat-chip px-3.5 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-medium border border-slate-200';
+        if(el.innerText.trim()===cat) el.className = 'cat-chip active px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-bold whitespace-nowrap shadow-sm';
+        else el.className = 'cat-chip px-4 py-2.5 bg-white text-slate-600 rounded-xl text-sm font-medium border border-slate-200 whitespace-nowrap';
       }); renderPosProducts();
     };
 
@@ -798,41 +976,101 @@
       document.getElementById('badge-debt').classList.toggle('hidden', withDebt.length === 0);
       if (list.length === 0) { container.innerHTML = '<div class="text-center text-slate-400 text-xs py-8">Belum ada pelanggan</div>'; return; }
       container.innerHTML = list.map(c => `
-        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-          <div><h4 class="font-bold text-xs text-slate-800">${c.nama}</h4><span class="text-[10px] text-slate-400">${c.no_hp||'-'}</span></div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-black text-amber-600">Rp ${Number(c.total_piutang).toLocaleString('id-ID')}</span>
-            <button onclick="openDebtPayModal('${c.id}')" class="px-2 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold">Bayar</button>
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <div><h4 class="font-bold text-sm text-slate-800">${c.nama}</h4><span class="text-xs text-slate-400">${c.no_hp||'No. WA belum ada'}</span></div>
+            <span class="text-sm font-black text-amber-600">Rp ${Number(c.total_piutang).toLocaleString('id-ID')}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button onclick="openDebtPayModal('${c.id}')" class="py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold">Bayar</button>
+            <button onclick="remindCustomerDebtWA('${c.id}')" class="py-2 bg-green-500 text-white rounded-lg text-xs font-bold">📲 WA</button>
+            <button onclick="generateDebtInvoicePDF('${c.id}')" class="py-2 bg-slate-700 text-white rounded-lg text-xs font-bold">📄 PDF</button>
           </div>
         </div>`).join('');
     };
     window.filterDebtCustomers = () => renderCustomerDebt();
     window.populateCustomerSelect = function() {
-      const sel = document.getElementById('pay-customer-select');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">-- Pilih Pelanggan --</option>' + customers.map(c => `<option value="${c.id}">${c.nama}</option>`).join('');
+      const dl = document.getElementById('customer-namelist');
+      if (!dl) return;
+      dl.innerHTML = customers.map(c => `<option value="${c.nama}">`).join('');
+    };
+    // Cari pelanggan berdasarkan nama (dipakai saat checkout tunai/bon untuk upsert data pembeli)
+    window.findOrPrepareCustomer = function(nama, phone) {
+      nama = (nama || '').trim(); phone = (phone || '').trim();
+      if (!nama) return null;
+      const existing = customers.find(c => c.nama.toLowerCase() === nama.toLowerCase());
+      if (existing) { if (phone) existing.no_hp = phone; return existing; }
+      return { id: 'local-' + Date.now(), nama, no_hp: phone, alamat: '', total_piutang: 0, _isNew: true };
     };
 
     // TAB LAPORAN
+    let reportPeriod = 'harian';
+    window.setReportPeriod = function(p) {
+      reportPeriod = p;
+      document.querySelectorAll('.report-period-btn').forEach(el => el.className = 'report-period-btn flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-slate-600 border border-slate-200');
+      document.getElementById('period-' + p).className = 'report-period-btn flex-1 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white';
+      document.getElementById('custom-date-range').classList.toggle('hidden', p !== 'custom');
+      if (p === 'custom') {
+        const today = new Date().toISOString().slice(0,10);
+        if (!document.getElementById('rep-date-from').value) document.getElementById('rep-date-from').value = today;
+        if (!document.getElementById('rep-date-to').value) document.getElementById('rep-date-to').value = today;
+      }
+      loadHistoryTransactions();
+    };
+
+    // Mengembalikan {from, to} (objek Date, inklusif) sesuai periode laporan yang aktif
+    window.getReportDateRange = function() {
+      const now = new Date();
+      if (reportPeriod === 'harian') {
+        const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        return { from, to };
+      }
+      if (reportPeriod === 'bulanan') {
+        const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        const to = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59);
+        return { from, to };
+      }
+      const fromVal = document.getElementById('rep-date-from').value;
+      const toVal = document.getElementById('rep-date-to').value;
+      const from = fromVal ? new Date(fromVal + 'T00:00:00') : new Date(0);
+      const to = toVal ? new Date(toVal + 'T23:59:59') : new Date();
+      return { from, to };
+    };
+
     window.loadHistoryTransactions = async function() {
       const listEl = document.getElementById('transaction-history-list');
       if (!listEl) return;
       if (db) {
         try {
-          const { data } = await db.from('transactions').select('*').order('created_at', { ascending: false }).limit(20);
+          const { data } = await db.from('transactions').select('*').order('created_at', { ascending: false }).limit(500);
           if (data) transactions = data;
         } catch (e) { /* biarkan pakai data lokal terakhir */ }
       }
-      const today = new Date().toDateString();
-      const todayTx = transactions.filter(t => new Date(t.created_at || Date.now()).toDateString() === today);
-      document.getElementById('rep-today-omset').innerText = 'Rp ' + todayTx.reduce((a,b)=>a+Number(b.total_akhir||0),0).toLocaleString('id-ID');
-      document.getElementById('rep-today-count').innerText = todayTx.length;
-      document.getElementById('rep-today-debt').innerText = 'Rp ' + todayTx.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0).toLocaleString('id-ID');
+      const { from, to } = getReportDateRange();
+      const filtered = transactions.filter(t => {
+        const d = new Date(t.created_at || Date.now());
+        return d >= from && d <= to;
+      });
+
+      document.getElementById('rep-today-omset').innerText = 'Rp ' + filtered.reduce((a,b)=>a+Number(b.total_akhir||0),0).toLocaleString('id-ID');
+      document.getElementById('rep-today-count').innerText = filtered.length;
+      document.getElementById('rep-today-debt').innerText = 'Rp ' + filtered.filter(t=>t.metode_bayar==='PIUTANG').reduce((a,b)=>a+Number(b.sisa_piutang||0),0).toLocaleString('id-ID');
       document.getElementById('rep-today-paid').innerText = 'Rp 0';
-      if (transactions.length === 0) { listEl.innerHTML = '<div class="text-center text-slate-400 text-xs py-8">Belum ada transaksi</div>'; return; }
-      listEl.innerHTML = transactions.map(t => `
+
+      // Produk paling laku (dihitung dari item transaksi lokal; mode Supabase butuh tabel item terpisah)
+      const topEl = document.getElementById('top-products-list');
+      const qtyMap = {};
+      filtered.forEach(t => { (t.items || []).forEach(it => { qtyMap[it.nama_produk] = (qtyMap[it.nama_produk] || 0) + Number(it.qty || 0); }); });
+      const topList = Object.entries(qtyMap).sort((a,b) => b[1]-a[1]).slice(0, 5);
+      topEl.innerHTML = topList.length
+        ? topList.map(([nama, qty], i) => `<div class="p-3 flex items-center justify-between"><span class="font-bold text-slate-800">${i+1}. ${nama}</span><span class="font-black text-brand-600">${qty} terjual</span></div>`).join('')
+        : '<div class="text-center text-slate-400 text-sm py-6">Belum ada data penjualan pada periode ini</div>';
+
+      if (filtered.length === 0) { listEl.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">Belum ada transaksi pada periode ini</div>'; return; }
+      listEl.innerHTML = filtered.map(t => `
         <div class="p-3 flex items-center justify-between">
-          <div><h5 class="font-bold text-slate-800">${t.no_struk||'-'}</h5><span class="text-[10px] text-slate-400">${t.metode_bayar||''}</span></div>
+          <div><h5 class="font-bold text-slate-800">${t.no_struk||'-'}</h5><span class="text-xs text-slate-400">${t.metode_bayar||''}${t.customer_nama ? ' · '+t.customer_nama : ''}</span></div>
           <span class="font-black text-slate-900">Rp ${Number(t.total_akhir||0).toLocaleString('id-ID')}</span>
         </div>`).join('');
     };
@@ -877,11 +1115,11 @@
       document.getElementById('cart-badge-count').innerText = totalItems;
       
       container.innerHTML = cart.map((c, i) => `
-        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-          <div class="flex-1 pr-2"><h5 class="font-bold">${c.nama_produk}</h5><span class="text-[10px] text-slate-400">@ Rp ${c.harga_satuan.toLocaleString('id-ID')}</span></div>
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
+          <div class="flex-1 pr-2"><h5 class="font-bold text-slate-800">${c.nama_produk}</h5><span class="text-xs text-slate-400">@ Rp ${c.harga_satuan.toLocaleString('id-ID')}</span></div>
           <div class="flex items-center gap-2">
-            <div class="flex items-center border bg-white rounded-lg"><button onclick="updateCartQty(${i}, -1)" class="w-6 h-6 font-bold text-slate-600">-</button><span class="w-5 text-center font-bold">${c.qty}</span><button onclick="updateCartQty(${i}, 1)" class="w-6 h-6 font-bold text-slate-600">+</button></div>
-            <span class="font-black text-slate-900 w-16 text-right">Rp ${c.subtotal.toLocaleString('id-ID')}</span>
+            <div class="flex items-center border bg-white rounded-lg"><button onclick="updateCartQty(${i}, -1)" class="w-9 h-9 font-bold text-lg text-slate-600">-</button><span class="w-7 text-center font-bold">${c.qty}</span><button onclick="updateCartQty(${i}, 1)" class="w-9 h-9 font-bold text-lg text-slate-600">+</button></div>
+            <span class="font-black text-slate-900 w-20 text-right">Rp ${c.subtotal.toLocaleString('id-ID')}</span>
           </div>
         </div>
       `).join('');
@@ -911,16 +1149,21 @@
       currentPayMode = mode;
       const { g } = calculateCartTotals();
       document.getElementById('modal-pay-total').innerText = 'Rp ' + g.toLocaleString('id-ID');
+      populateCustomerSelect();
       if(mode==='TUNAI') {
         document.getElementById('modal-pay-title').innerText = 'Tunai';
         document.getElementById('cash-payment-fields').classList.remove('hidden');
         document.getElementById('debt-payment-fields').classList.add('hidden');
         document.getElementById('pay-cash-tendered').value = g; calculateChange();
+        document.getElementById('pay-cash-cust-name').value = '';
+        document.getElementById('pay-cash-cust-phone').value = '';
       } else {
         document.getElementById('modal-pay-title').innerText = 'Catat Bon';
         document.getElementById('cash-payment-fields').classList.add('hidden');
         document.getElementById('debt-payment-fields').classList.remove('hidden');
-        populateCustomerSelect();
+        document.getElementById('pay-debt-cust-name').value = '';
+        document.getElementById('pay-debt-cust-phone').value = '';
+        document.getElementById('pay-debt-dp').value = 0;
       }
       openModal('payment-modal');
     };
@@ -939,32 +1182,62 @@
       triggerHaptic();
       const { s, d, g } = calculateCartTotals();
       const ns = 'TRX-' + Date.now().toString().slice(-6);
-      let cust = null, bayar = g, kembalian = 0, status = 'LUNAS', sisa = 0;
+      let custObj = null, bayar = g, kembalian = 0, status = 'LUNAS', sisa = 0;
 
       if(currentPayMode === 'TUNAI') {
         bayar = Number(document.getElementById('pay-cash-tendered').value)||0;
         if(bayar < g) { showToast('Uang kurang!', 'error'); return; }
         kembalian = bayar - g;
+        const nm = document.getElementById('pay-cash-cust-name').value.trim();
+        const ph = document.getElementById('pay-cash-cust-phone').value.trim();
+        if (nm) custObj = findOrPrepareCustomer(nm, ph);
       } else {
-        cust = document.getElementById('pay-customer-select').value;
-        if(!cust) { showToast('Pilih pelanggan!', 'error'); return; }
+        const nm = document.getElementById('pay-debt-cust-name').value.trim();
+        const ph = document.getElementById('pay-debt-cust-phone').value.trim();
+        if(!nm || !ph) { showToast('Nama & No. WA pelanggan wajib diisi', 'error'); return; }
+        custObj = findOrPrepareCustomer(nm, ph);
         bayar = Number(document.getElementById('pay-debt-dp').value)||0;
         sisa = Math.max(0, g - bayar);
         status = sisa > 0 ? 'BELUM_LUNAS' : 'LUNAS';
       }
 
+      // Simpan/perbarui data pelanggan dulu (upsert) — inilah titik satu-satunya data pelanggan tercatat
+      if (custObj) {
+        if (db) {
+          try {
+            if (custObj._isNew) {
+              const { id, _isNew, ...payload } = custObj;
+              const { data: inserted, error } = await db.from('customers').insert(payload).select().single();
+              if (error) throw error;
+              custObj.id = inserted.id;
+              customers.push(inserted);
+            } else {
+              await db.from('customers').update({ no_hp: custObj.no_hp }).eq('id', custObj.id);
+            }
+          } catch (e) { showToast('Gagal simpan data pelanggan ke Supabase', 'error'); return; }
+        } else if (custObj._isNew) {
+          delete custObj._isNew;
+          customers.push(custObj);
+        }
+      }
+
+      const itemsSnapshot = cart.map(c => ({ nama_produk: c.nama_produk, qty: c.qty, harga_satuan: c.harga_satuan, subtotal: c.subtotal }));
+
       if(db) {
         try {
-          await db.rpc('process_sale', { p_no_struk:ns, p_customer_id:cust||null, p_total_belanja:s, p_diskon:d, p_total_akhir:g, p_metode_bayar:currentPayMode, p_nominal_bayar:bayar, p_kembalian:kembalian, p_status_bayar:status, p_sisa_piutang:sisa, p_jatuh_tempo:null, p_catatan:'App', p_items: cart });
+          await db.rpc('process_sale', { p_no_struk:ns, p_customer_id: custObj ? custObj.id : null, p_total_belanja:s, p_diskon:d, p_total_akhir:g, p_metode_bayar:currentPayMode, p_nominal_bayar:bayar, p_kembalian:kembalian, p_status_bayar:status, p_sisa_piutang:sisa, p_jatuh_tempo:null, p_catatan:'App', p_items: cart });
         } catch(e) { showToast('DB Error', 'error'); return; }
       } else {
         cart.forEach(ci => { const p = products.find(x=>x.id===ci.product_id); if(p) p.stok = Math.max(0, p.stok-ci.qty); });
-        if(cust && sisa>0) { const c = customers.find(x=>x.id===cust); if(c) c.total_piutang = Number(c.total_piutang) + sisa; }
-        transactions.unshift({ no_struk: ns, metode_bayar: currentPayMode, total_akhir: g, sisa_piutang: sisa, created_at: new Date().toISOString() });
+        if(custObj && sisa>0) { custObj.total_piutang = Number(custObj.total_piutang||0) + sisa; }
+        transactions.unshift({
+          no_struk: ns, metode_bayar: currentPayMode, total_akhir: g, sisa_piutang: sisa,
+          customer_nama: custObj ? custObj.nama : null, created_at: new Date().toISOString(), items: itemsSnapshot
+        });
       }
 
       closePaymentModal(); toggleCartDrawer(false); clearCart(); showToast('Transaksi Berhasil!', 'success');
-      if(db) fetchSupabase(); else { renderPosProducts(); renderStockList(); renderCustomerDebt(); loadHistoryTransactions(); }
+      if(db) fetchSupabase(); else { renderPosProducts(); renderStockList(); renderCustomerDebt(); populateCustomerSelect(); loadHistoryTransactions(); }
     };
 
     // JALANKAN SAAT MULAI
